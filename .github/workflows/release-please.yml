@@ -34,13 +34,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm ci --workspace triplate-ts
       - run: npm test --workspace triplate-ts
-      - run: npm publish --workspace triplate-ts --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --workspace triplate-ts --access public
 
   pypi:
     name: Publish to PyPI
