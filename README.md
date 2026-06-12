@@ -18,7 +18,7 @@ the host language, so an unprocessed template fails fast.
 ---
 params {
   classes: iri[] min 1
-  limit:   int optional
+  limit: int optional
 }
 ---
 SELECT ?s WHERE {
