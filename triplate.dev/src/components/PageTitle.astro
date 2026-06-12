@@ -1,0 +1,32 @@
+---
+/**
+ * Custom Starlight page title. On the home page (root slug) the title is
+ * rendered as a large dictionary entry; every other page keeps the default
+ * heading. The element keeps Starlight's `_top` id so in-page anchors work.
+ */
+const route = Astro.locals.starlightRoute;
+const isHome = route.slug === '';
+const title = route.entry.data.title;
+---
+
+{
+  isHome ? (
+    <h1 id="_top" class="triplate-entry">
+      <span class="tl-word">triplate</span><span class="tl-pos">, to</span>
+      <span class="tl-op">:=</span>
+      <span class="tl-def">to template RDF languages with ease</span>
+    </h1>
+  ) : (
+    <h1 id="_top">{title}</h1>
+  )
+}
+
+<style>
+  h1 {
+    margin-top: 1rem;
+    font-size: var(--sl-text-h1);
+    line-height: var(--sl-line-height-headings);
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+</style>

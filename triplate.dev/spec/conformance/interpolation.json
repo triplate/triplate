@@ -1,0 +1,71 @@
+[
+  {
+    "name": "basic interpolation",
+    "template": "---\nparams { name: string }\n---\nFILTER(?l = $\"Hello ${name}\")",
+    "context": {
+      "name": "World"
+    },
+    "expected": "FILTER(?l = \"Hello World\")"
+  },
+  {
+    "name": "multiple holes with int",
+    "template": "---\nparams { index: int, label: string }\n---\nFILTER(?l = $\"Result #${index}: ${label}\")",
+    "context": {
+      "index": 2,
+      "label": "Acme"
+    },
+    "expected": "FILTER(?l = \"Result #2: Acme\")"
+  },
+  {
+    "name": "static language tag",
+    "template": "---\nparams { }\n---\nFILTER(?l = $\"localized\"@en)",
+    "context": {},
+    "expected": "FILTER(?l = \"localized\"@en)"
+  },
+  {
+    "name": "dynamic language tag from param",
+    "template": "---\nparams { name: string, lang: string }\n---\nFILTER(?l = $\"Hello ${name}\"@${lang})",
+    "context": {
+      "name": "World",
+      "lang": "de"
+    },
+    "expected": "FILTER(?l = \"Hello World\"@de)"
+  },
+  {
+    "name": "static datatype",
+    "template": "---\nparams { }\n---\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT * WHERE { ?s ?p ?o FILTER(?o = $\"42\"^^xsd:int) }",
+    "context": {},
+    "expected": "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT * WHERE { ?s ?p ?o FILTER(?o = \"42\"^^xsd:int) }",
+    "roundtrip": true
+  },
+  {
+    "name": "author escapes round-trip",
+    "template": "---\nparams { }\n---\nFILTER(?l = $\"Say \\\"hi\\\"\")",
+    "context": {},
+    "expected": "FILTER(?l = \"Say \\\"hi\\\"\")"
+  },
+  {
+    "name": "interpolated value is escaped",
+    "template": "---\nparams { x: string }\n---\nFILTER(?l = $\"v: ${x}\")",
+    "context": {
+      "x": "a\"b\nc"
+    },
+    "expected": "FILTER(?l = \"v: a\\\"b\\nc\")"
+  },
+  {
+    "name": "raw hole is verbatim",
+    "template": "---\nparams { x: raw }\n---\nFILTER(?l = $\"a ${x} b\")",
+    "context": {
+      "x": "RAW"
+    },
+    "expected": "FILTER(?l = \"a RAW b\")"
+  },
+  {
+    "name": "int hole",
+    "template": "---\nparams { n: int }\n---\nFILTER(?l = $\"n=${n}\")",
+    "context": {
+      "n": 5
+    },
+    "expected": "FILTER(?l = \"n=5\")"
+  }
+]

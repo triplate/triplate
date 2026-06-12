@@ -1,0 +1,73 @@
+[
+  {
+    "name": "runtime hole minted into path",
+    "template": "---\nparams { id: string }\n---\nSELECT * WHERE { $<http://example.org/person/${id}> ?p ?o }",
+    "context": {
+      "id": "42"
+    },
+    "expected": "SELECT * WHERE { <http://example.org/person/42> ?p ?o }",
+    "roundtrip": true
+  },
+  {
+    "name": "segment-safe encodes slashes and reserved",
+    "template": "---\nparams { id: string }\n---\n?s ex:p $<http://example.org/item/${id}> .",
+    "context": {
+      "id": "a/b?c#d"
+    },
+    "expected": "?s ex:p <http://example.org/item/a%2Fb%3Fc%23d> ."
+  },
+  {
+    "name": "non-ascii percent-encoded as utf-8",
+    "template": "---\nparams { name: string }\n---\n?s ex:p $<http://example.org/${name}> .",
+    "context": {
+      "name": "café"
+    },
+    "expected": "?s ex:p <http://example.org/caf%C3%A9> ."
+  },
+  {
+    "name": "unreserved characters kept",
+    "template": "---\nparams { id: string }\n---\n?s ex:p $<http://example.org/${id}> .",
+    "context": {
+      "id": "A-z_0.9~x"
+    },
+    "expected": "?s ex:p <http://example.org/A-z_0.9~x> ."
+  },
+  {
+    "name": "raw hole inserts verbatim",
+    "template": "---\nparams { ns: raw }\n---\n?s ex:p $<http://example.org/${ns}/item> .",
+    "context": {
+      "ns": "core/v2"
+    },
+    "expected": "?s ex:p <http://example.org/core/v2/item> ."
+  },
+  {
+    "name": "percent in value is encoded",
+    "template": "---\nparams { id: string }\n---\n?s ex:p $<http://example.org/${id}> .",
+    "context": {
+      "id": "50%"
+    },
+    "expected": "?s ex:p <http://example.org/50%25> ."
+  },
+  {
+    "name": "static IRI template (no holes)",
+    "template": "---\nparams { }\n---\n?s a $<http://example.org/Thing> .",
+    "context": {},
+    "expected": "?s a <http://example.org/Thing> ."
+  },
+  {
+    "name": "raw hole breaking the IRI is rejected",
+    "template": "---\nparams { x: raw }\n---\n?s a $<http://example.org/${x}> .",
+    "context": {
+      "x": "a> . ?s ?p ?o . <b"
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "missing scheme is not absolute",
+    "template": "---\nparams { id: string }\n---\n?s a $<example.org/${id}> .",
+    "context": {
+      "id": "1"
+    },
+    "error": "TriplateTypeError"
+  }
+]

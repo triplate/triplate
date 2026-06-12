@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "extra-files": [
+        { "type": "json", "path": "triplate-ts/package.json", "jsonpath": "$.version" },
+        { "type": "toml", "path": "triplate-py/pyproject.toml", "jsonpath": "$.project.version" },
+        { "type": "xml", "path": "triplate-java/pom.xml", "xpath": "//*[local-name()='project']/*[local-name()='version']" }
+      ]
+    }
+  }
+}

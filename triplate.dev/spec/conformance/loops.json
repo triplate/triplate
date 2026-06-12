@@ -1,0 +1,131 @@
+[
+  {
+    "name": "union join padded",
+    "template": "---\nparams { classes: iri[] }\n---\nSELECT * WHERE {\n{% for c in classes join \"UNION\" %}\n  { ?s a ${c} }\n{% endfor %}\n}",
+    "context": {
+      "classes": [
+        "http://example.org/Person",
+        "http://example.org/Org"
+      ]
+    },
+    "expected": "SELECT * WHERE {\n  { ?s a <http://example.org/Person> } UNION { ?s a <http://example.org/Org> }\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "join with single item has no separator",
+    "template": "---\nparams { classes: iri[] }\n---\nSELECT * WHERE {\n{% for c in classes join \"UNION\" %}\n  { ?s a ${c} }\n{% endfor %}\n}",
+    "context": {
+      "classes": [
+        "http://example.org/Person"
+      ]
+    },
+    "expected": "SELECT * WHERE {\n  { ?s a <http://example.org/Person> }\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "empty list renders nothing",
+    "template": "---\nparams { classes: iri[] }\n---\nSELECT * WHERE {\n  ?s ?p ?o .\n{% for c in classes %}\n  ?s a ${c} .\n{% endfor %}\n}",
+    "context": {
+      "classes": []
+    },
+    "expected": "SELECT * WHERE {\n  ?s ?p ?o .\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "default join pads with spaces",
+    "template": "---\nparams { items: string[] }\n---\n{% for c in items join \",\" %}\n${c}\n{% endfor %}\n",
+    "context": {
+      "items": [
+        "a",
+        "b"
+      ]
+    },
+    "expected": "\"a\" , \"b\"\n"
+  },
+  {
+    "name": "explicit join is verbatim",
+    "template": "---\nparams { items: string[] }\n---\n{% for c in items join \", \" explicit %}\n${c}\n{% endfor %}\n",
+    "context": {
+      "items": [
+        "a",
+        "b"
+      ]
+    },
+    "expected": "\"a\", \"b\"\n"
+  },
+  {
+    "name": "values single variable",
+    "template": "---\nparams { classes: iri[] }\n---\nSELECT * WHERE {\n  ?s a ?type .\n  VALUES ?type {\n{% for c in classes %}\n    ${c}\n{% endfor %}\n  }\n}",
+    "context": {
+      "classes": [
+        "http://example.org/Person",
+        "http://example.org/Organization"
+      ]
+    },
+    "expected": "SELECT * WHERE {\n  ?s a ?type .\n  VALUES ?type {\n    <http://example.org/Person>\n    <http://example.org/Organization>\n  }\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "values tuples with record fields",
+    "template": "---\nparams { people: { id: iri, name: string }[] }\n---\nSELECT ?id ?name WHERE {\n  VALUES (?id ?name) {\n{% for p in people %}\n    (${p.id} ${p.name})\n{% endfor %}\n  }\n}",
+    "context": {
+      "people": [
+        {
+          "id": "http://example.org/p1",
+          "name": "Alice"
+        },
+        {
+          "id": "http://example.org/p2",
+          "name": "Bob"
+        }
+      ]
+    },
+    "expected": "SELECT ?id ?name WHERE {\n  VALUES (?id ?name) {\n    (<http://example.org/p1> \"Alice\")\n    (<http://example.org/p2> \"Bob\")\n  }\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "inline for tag",
+    "template": "---\nparams { classes: iri[] }\n---\nSELECT * WHERE { VALUES ?t { {% for c in classes %}${c} {% endfor %}} }",
+    "context": {
+      "classes": [
+        "http://example.org/Person",
+        "http://example.org/Org"
+      ]
+    },
+    "expected": "SELECT * WHERE { VALUES ?t { <http://example.org/Person> <http://example.org/Org> } }",
+    "roundtrip": true
+  },
+  {
+    "name": "nested loops via record path",
+    "template": "---\nparams { groups: { members: iri[] }[] }\n---\nPREFIX ex: <http://example.org/>\nCONSTRUCT { ?s ex:knows ?o } WHERE {\n{% for g in groups %}\n{% for m in g.members %}\n  ?s ex:knows ${m} .\n{% endfor %}\n{% endfor %}\n}",
+    "context": {
+      "groups": [
+        {
+          "members": [
+            "http://example.org/a",
+            "http://example.org/b"
+          ]
+        },
+        {
+          "members": [
+            "http://example.org/c"
+          ]
+        }
+      ]
+    },
+    "expected": "PREFIX ex: <http://example.org/>\nCONSTRUCT { ?s ex:knows ?o } WHERE {\n  ?s ex:knows <http://example.org/a> .\n  ?s ex:knows <http://example.org/b> .\n  ?s ex:knows <http://example.org/c> .\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "keywords case-insensitive",
+    "template": "---\nparams { classes: iri[] }\n---\nSELECT * WHERE {\n{% FOR c IN classes JOIN \"UNION\" %}\n  { ?s a ${c} }\n{% ENDFOR %}\n}",
+    "context": {
+      "classes": [
+        "http://example.org/Person",
+        "http://example.org/Org"
+      ]
+    },
+    "expected": "SELECT * WHERE {\n  { ?s a <http://example.org/Person> } UNION { ?s a <http://example.org/Org> }\n}",
+    "roundtrip": true
+  }
+]

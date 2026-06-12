@@ -1,0 +1,82 @@
+[
+  {
+    "name": "optional present",
+    "template": "---\nparams { nameFilter: string optional }\n---\nSELECT * WHERE {\n  ?s ?p ?name .\n{% if nameFilter %}\n  FILTER(CONTAINS(?name, ${nameFilter}))\n{% endif %}\n}",
+    "context": {
+      "nameFilter": "Al"
+    },
+    "expected": "SELECT * WHERE {\n  ?s ?p ?name .\n  FILTER(CONTAINS(?name, \"Al\"))\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "optional absent",
+    "template": "---\nparams { nameFilter: string optional }\n---\nSELECT * WHERE {\n  ?s ?p ?name .\n{% if nameFilter %}\n  FILTER(CONTAINS(?name, ${nameFilter}))\n{% endif %}\n}",
+    "context": {},
+    "expected": "SELECT * WHERE {\n  ?s ?p ?name .\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "bool true",
+    "template": "---\nparams { withLabel: bool }\n---\nSELECT * WHERE {\n  ?s ?p ?o .\n{% if withLabel %}\n  ?s rdfs:label ?l .\n{% endif %}\n}",
+    "context": {
+      "withLabel": true
+    },
+    "expected": "SELECT * WHERE {\n  ?s ?p ?o .\n  ?s rdfs:label ?l .\n}"
+  },
+  {
+    "name": "bool false",
+    "template": "---\nparams { withLabel: bool }\n---\nx\n{% if withLabel %}\nyes\n{% endif %}\nz",
+    "context": {
+      "withLabel": false
+    },
+    "expected": "x\nz"
+  },
+  {
+    "name": "array non-empty",
+    "template": "---\nparams { tags: string[] }\n---\n{% if tags %}\nHAS TAGS\n{% endif %}\n",
+    "context": {
+      "tags": [
+        "a"
+      ]
+    },
+    "expected": "HAS TAGS\n"
+  },
+  {
+    "name": "array empty is false",
+    "template": "---\nparams { tags: string[] }\n---\n{% if tags %}\nHAS TAGS\n{% endif %}\nEND",
+    "context": {
+      "tags": []
+    },
+    "expected": "END"
+  },
+  {
+    "name": "else branch",
+    "template": "---\nparams { limit: int optional }\n---\n{% if limit %}LIMIT ${limit}{% else %}LIMIT 100{% endif %}",
+    "context": {},
+    "expected": "LIMIT 100"
+  },
+  {
+    "name": "else branch taken when present",
+    "template": "---\nparams { limit: int optional }\n---\n{% if limit %}LIMIT ${limit}{% else %}LIMIT 100{% endif %}",
+    "context": {
+      "limit": 50
+    },
+    "expected": "LIMIT 50"
+  },
+  {
+    "name": "not negation",
+    "template": "---\nparams { nameFilter: string optional }\n---\n{% if not nameFilter %}\nNO FILTER\n{% endif %}\n",
+    "context": {},
+    "expected": "NO FILTER\n"
+  },
+  {
+    "name": "optional record field condition",
+    "template": "---\nparams { p: { name: string, email: string optional } }\n---\n${p.name}{% if p.email %} <${p.email}>{% endif %}",
+    "context": {
+      "p": {
+        "name": "Alice"
+      }
+    },
+    "expected": "\"Alice\""
+  }
+]

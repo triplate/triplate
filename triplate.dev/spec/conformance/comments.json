@@ -1,0 +1,62 @@
+[
+  {
+    "name": "directives in comments are inert",
+    "template": "---\nparams { o: iri }\n---\n# uses ${o} and {% for x in y %}\nSELECT * WHERE { ?s ?p ${o} }",
+    "context": {
+      "o": "http://example.org/o"
+    },
+    "expected": "# uses ${o} and {% for x in y %}\nSELECT * WHERE { ?s ?p <http://example.org/o> }",
+    "roundtrip": true
+  },
+  {
+    "name": "hash inside string is not a comment",
+    "template": "---\nparams { x: iri }\n---\nSELECT * WHERE { ?s ?p \"a#b\" . ?s ?q ${x} }",
+    "context": {
+      "x": "http://example.org/x"
+    },
+    "expected": "SELECT * WHERE { ?s ?p \"a#b\" . ?s ?q <http://example.org/x> }",
+    "roundtrip": true
+  },
+  {
+    "name": "hash inside IRI is not a comment",
+    "template": "---\nparams { x: iri }\n---\nSELECT * WHERE { ?s ?p <http://example.org/x#frag> . ?s ?q ${x} }",
+    "context": {
+      "x": "http://example.org/x"
+    },
+    "expected": "SELECT * WHERE { ?s ?p <http://example.org/x#frag> . ?s ?q <http://example.org/x> }",
+    "roundtrip": true
+  },
+  {
+    "name": "percent-encoding in IRI is protected",
+    "template": "---\nparams { }\n---\nSELECT * WHERE { ?s ?p <http://example.org/caf%C3%A9> }",
+    "context": {},
+    "expected": "SELECT * WHERE { ?s ?p <http://example.org/caf%C3%A9> }",
+    "roundtrip": true
+  },
+  {
+    "name": "interpolation tokens inside a plain string are inert",
+    "template": "---\nparams { x: int }\n---\nFILTER(STRSTARTS(?l, \"100% ${x} ok\") && ?n = ${x})",
+    "context": {
+      "x": 1
+    },
+    "expected": "FILTER(STRSTARTS(?l, \"100% ${x} ok\") && ?n = 1)"
+  },
+  {
+    "name": "bare dollar variable is a SPARQL variable, inert",
+    "template": "---\nparams { o: iri }\n---\nSELECT * WHERE { $s ?p ${o} }",
+    "context": {
+      "o": "http://example.org/o"
+    },
+    "expected": "SELECT * WHERE { $s ?p <http://example.org/o> }",
+    "roundtrip": true
+  },
+  {
+    "name": "less-than comparison is not an IRI",
+    "template": "---\nparams { n: int }\n---\nSELECT * WHERE { ?s ?p ?x FILTER(?x < ${n}) }",
+    "context": {
+      "n": 10
+    },
+    "expected": "SELECT * WHERE { ?s ?p ?x FILTER(?x < 10) }",
+    "roundtrip": true
+  }
+]

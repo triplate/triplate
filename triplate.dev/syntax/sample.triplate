@@ -1,0 +1,31 @@
+---
+params {
+  service: iri
+  classes: iri[] min 1
+  people:  { id: iri, name: string }[]
+  limit:   int optional
+}
+
+# the dbpedia preview scenario
+example dbpedia "DBpedia — people & organizations" {
+  service: <http://dbpedia.org/sparql>
+  classes: [ foaf:Person, foaf:Organization ]
+  people:  [ { id: <http://example.org/p1>, name: "Alice" } ]
+  limit:   10
+}
+---
+# Lists instances of the requested classes from a chosen service.
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+SELECT ?s ?name WHERE {
+  SERVICE ${service} {
+{% for c in classes join "UNION" %}
+    { ?s a ${c} }
+{% endfor %}
+  }
+  VALUES (?id ?name) {
+{% for p in people %}
+    ($<http://example.org/person/${p.id}> $"label ${p.name}"@en)
+{% endfor %}
+  }
+}
+{% if limit %}LIMIT ${limit}{% endif %}

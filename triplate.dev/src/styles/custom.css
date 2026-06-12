@@ -1,0 +1,59 @@
+:root {
+  --font-noto-serif: "Noto Serif", sans-serif;
+  --sl-content-width: 60rem;
+}
+
+:root[data-theme="light"] {
+  --sl-color-text-accent: #ff4785;
+}
+
+:root[data-theme="dark"] {
+  --sl-color-text-accent: #ff4785;
+}
+
+:root[data-theme="dark"] .sidebar-pane {
+  background: transparent !important;
+  border-right: 1px solid var(--sl-color-hairline);
+}
+
+.site-title {
+  font-family: var(--font-noto-serif), serif;
+  color: var(--sl-color-white);
+}
+
+h1 {
+  font-family: var(--font-noto-serif), serif;
+}
+
+/* Dictionary-entry styling for the home-page title. */
+h1.triplate-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  font-family: var(--font-noto-serif), serif !important;
+}
+
+h1.triplate-entry .tl-word {
+  font-weight: 700;
+}
+
+h1.triplate-entry .tl-pos {
+  font-style: italic;
+  font-size: 0.7em;
+  font-weight: 400;
+  margin-right: 0.5ch;
+  color: var(--sl-color-gray-3);
+}
+
+h1.triplate-entry .tl-op {
+  font-size: 0.7em;
+  font-weight: 400;
+  margin-right: 0.5ch;
+  color: var(--sl-color-gray-3);
+}
+
+h1.triplate-entry .tl-def {
+  font-size: 0.65em;
+  font-weight: 400;
+  color: var(--sl-color-gray-3);
+}

@@ -1,0 +1,67 @@
+# Release automation: release-please maintains a release PR on main with the
+# changelog and lockstep version bumps (root + ts + py + java, see
+# release-please-config.json). Merging that PR creates the v* tag and GitHub
+# Release; the publish jobs below run in the same workflow because tags pushed
+# with the default GITHUB_TOKEN never trigger other workflows.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-please:
+    name: Release PR / tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+
+  npm:
+    name: Publish to npm
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci --workspace triplate-ts
+      - run: npm test --workspace triplate-ts
+      - run: npm publish --workspace triplate-ts --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  pypi:
+    name: Publish to PyPI
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e "triplate-py[dev]" build
+      - run: python -m pytest triplate-py/tests -q
+      - run: python -m build triplate-py
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: triplate-py/dist
+
+  # Maven Central is intentionally not published yet. When wanted: one-time
+  # Sonatype Central account + dev.triplate namespace verification + GPG key,
+  # then add a job here gated on release_created like the others.

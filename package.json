@@ -1,0 +1,20 @@
+{
+  "name": "triplate-monorepo",
+  "private": true,
+  "version": "0.3.0",
+  "description": "Monorepo for Triplate — a templating engine for RDF query & data languages (SPARQL, Turtle, …)",
+  "workspaces": [
+    "triplate-ts",
+    "triplate.dev"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace triplate-ts",
+    "test": "npm run test --workspace triplate-ts",
+    "test:syntax": "npm run test:syntax --workspace triplate.dev",
+    "test:py": "triplate-py/.venv/bin/python -m pytest triplate-py/tests -q",
+    "test:java": "mvn -B -f triplate-java/pom.xml test",
+    "docs:dev": "npm run dev --workspace triplate.dev",
+    "docs:build": "npm run build --workspace triplate.dev"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,151 @@
+[
+  {
+    "name": "missing required parameter",
+    "template": "---\nparams { s: iri }\n---\n?x a ${s}",
+    "context": {},
+    "error": "TriplateBindingError"
+  },
+  {
+    "name": "undeclared variable",
+    "template": "---\nparams { s: iri }\n---\n?x a ${t}",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "error": "TriplateSyntaxError"
+  },
+  {
+    "name": "missing params header",
+    "template": "SELECT * WHERE { ?s ?p ?o }",
+    "context": {},
+    "error": "TriplateSyntaxError"
+  },
+  {
+    "name": "string where int expected",
+    "template": "---\nparams { n: int }\n---\nLIMIT ${n}",
+    "context": {
+      "n": "10"
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "bool where int expected",
+    "template": "---\nparams { n: int }\n---\nLIMIT ${n}",
+    "context": {
+      "n": true
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "list where scalar expected at value",
+    "template": "---\nparams { xs: iri[] }\n---\n?x a ${xs}",
+    "context": {
+      "xs": [
+        "http://example.org/C"
+      ]
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "scalar in for loop",
+    "template": "---\nparams { s: iri }\n---\n{% for c in s %}${c}{% endfor %}",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "cardinality min violated",
+    "template": "---\nparams { classes: iri[] min 1 }\n---\n{% for c in classes %}${c}{% endfor %}",
+    "context": {
+      "classes": []
+    },
+    "error": "TriplateCardinalityError"
+  },
+  {
+    "name": "cardinality max violated",
+    "template": "---\nparams { classes: iri[] max 1 }\n---\n{% for c in classes %}${c}{% endfor %}",
+    "context": {
+      "classes": [
+        "http://example.org/A",
+        "http://example.org/B"
+      ]
+    },
+    "error": "TriplateCardinalityError"
+  },
+  {
+    "name": "iri injection rejected",
+    "template": "---\nparams { c: iri }\n---\n?s a ${c}",
+    "context": {
+      "c": "http://x/> . } DROP GRAPH <urn:g"
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "missing record field",
+    "template": "---\nparams { u: { id: iri } }\n---\n${u.id}",
+    "context": {
+      "u": {}
+    },
+    "error": "TriplateBindingError"
+  },
+  {
+    "name": "unknown record field declared usage",
+    "template": "---\nparams { u: { id: iri } }\n---\n${u.name}",
+    "context": {
+      "u": {
+        "id": "http://example.org/x"
+      }
+    },
+    "error": "TriplateBindingError"
+  },
+  {
+    "name": "condition on required scalar",
+    "template": "---\nparams { s: iri }\n---\n{% if s %}x{% endif %}",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "unclosed for",
+    "template": "---\nparams { xs: iri[] }\n---\n{% for c in xs %}${c}",
+    "context": {
+      "xs": []
+    },
+    "error": "TriplateSyntaxError"
+  },
+  {
+    "name": "endif without if",
+    "template": "---\nparams { }\n---\n{% endif %}",
+    "context": {},
+    "error": "TriplateSyntaxError"
+  },
+  {
+    "name": "unknown directive",
+    "template": "---\nparams { }\n---\n{% wat %}",
+    "context": {},
+    "error": "TriplateSyntaxError"
+  },
+  {
+    "name": "unknown type in header",
+    "template": "---\nparams { s: nope }\n---\n${s}",
+    "context": {
+      "s": "x"
+    },
+    "error": "TriplateSyntaxError"
+  },
+  {
+    "name": "min/max on non-array",
+    "template": "---\nparams { s: iri min 1 }\n---\n${s}",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "error": "TriplateSyntaxError"
+  },
+  {
+    "name": "using optional value without guard",
+    "template": "---\nparams { x: string optional }\n---\n${x}",
+    "context": {},
+    "error": "TriplateBindingError"
+  }
+]

@@ -1,0 +1,70 @@
+(* Triplate template grammar, v0.3.
+
+   Host-agnostic: works over SPARQL, Turtle, TriG and N-Triples. The special
+   tokens ($ { , $" , $< , {% ) and the leading --- fence are invalid in those
+   grammars, so an unprocessed template fails to parse (fail-fast). A bare
+   $name (a SPARQL variable) and any @… (language tags, Turtle @prefix) pass
+   through inert.
+
+   Keyword and type tokens are matched case-insensitively (ASCII fold).
+   Variable names, IRIs, string content and language tags are case-sensitive. *)
+
+Template     ::= Frontmatter Body
+
+(* ---- Frontmatter header (mandatory, delimited by ---) ----
+   The whole block, through the closing --- and its newline, is consumed and
+   never emitted. Inside, # comments and whitespace are ignored; sections are
+   brace-delimited so parameter names are unrestricted. *)
+Frontmatter  ::= '---' EOL ( Comment | WS | Section )* '---' EOL
+Section      ::= 'params' '{' ParamDecl* '}'
+               | 'example' Slug ( WS String )? '{' Binding* '}'
+ParamDecl    ::= Ident ':' TypeExpr
+Binding      ::= Ident ':' ExValue
+TypeExpr     ::= TypeBase ( '[]' )? ( WS 'optional' )?
+                          ( WS 'min' WS Int )? ( WS 'max' WS Int )?
+TypeBase     ::= Scalar | 'literal' '(' DatatypeRef ')' | Record
+Scalar       ::= 'iri' | 'pname' | 'string' | 'int' | 'decimal' | 'double'
+               | 'bool' | 'date' | 'dateTime' | 'time' | 'term' | 'raw'
+Record       ::= '{' Field ( ( ',' )? Field )* '}'
+Field        ::= Ident ':' TypeExpr
+Slug         ::= ( Letter | '_' ) ( Letter | Digit | '_' | '-' )*
+ExValue      ::= IRIREF | PrefixedName | String ( '@' LangTag | '^^' DatatypeRef )?
+               | Number | 'true' | 'false'
+               | '[' ( ExValue ( ','? ExValue )* )? ']'
+               | '{' ( Ident ':' ExValue ( ','? Ident ':' ExValue )* )? '}'
+DatatypeRef  ::= IRIREF | PrefixedName
+
+(* ---- Body ---- *)
+Body         ::= ( Comment | IriRef | StringLit | Text
+                 | Value | InterpStr | IriTemplate | ForLoop | IfBlock )*
+
+(* Inert regions: a $ or { inside any of these is literal text. *)
+Comment      ::= '#' ( AnyChar - LineEnd )*
+IriRef       ::= '<' ( AnyChar - ( WSChar | '<' | '>' | '"' ) )* '>'
+StringLit    ::= '"' ( StrChar | StrEscape )* '"'
+               | "'" ( SQChar | StrEscape )* "'"
+               | '"""' ( AnyChar - '"""' )* '"""'
+               | "'''" ( AnyChar - "'''" )* "'''"
+
+Value        ::= '${' WS? Path WS? '}'
+InterpStr    ::= '$"' ( StrChar | StrEscape | Value )* '"'
+                 ( '@' ( LangTag | Value ) | '^^' ( IRIREF | PrefixedName ) )?
+IriTemplate  ::= '$<' ( IriChar | Value )* '>'
+Path         ::= Ident ( '.' Ident )*
+
+ForLoop      ::= '{%' WS? 'for' WS Ident WS 'in' WS Path JoinClause? WS? '%}'
+                 Body
+                 '{%' WS? 'endfor' WS? '%}'
+JoinClause   ::= WS 'join' WS String ( WS 'explicit' )?
+IfBlock      ::= '{%' WS? 'if' WS Cond WS? '%}' Body
+                 ( '{%' WS? 'elif' WS Cond WS? '%}' Body )*
+                 ( '{%' WS? 'else' WS? '%}' Body )?
+                 '{%' WS? 'endif' WS? '%}'
+Cond         ::= ( 'not' WS )? Path
+
+Ident        ::= ( Letter | '_' ) ( Letter | Digit | '_' )*
+LangTag      ::= Letter ( Letter | Digit | '-' )*
+String       ::= '"' ( StrChar | StrEscape )* '"'
+StrEscape    ::= '\\' ( '\\' | '"' | 'n' | 'r' | 't' )
+Int          ::= Digit+
+Text         ::= (* any run of characters not opening a construct above *)

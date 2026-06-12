@@ -1,0 +1,16 @@
+{
+  "name": "SPARQL (stub for injection tests)",
+  "scopeName": "source.sparql",
+  "patterns": [
+    { "name": "comment.line.number-sign.sparql", "match": "#.*$" },
+    {
+      "name": "string.quoted.double.sparql",
+      "begin": "\"",
+      "end": "\""
+    },
+    {
+      "name": "constant.other.iri.sparql",
+      "match": "<[^<>\"{}|^`\\s]*>"
+    }
+  ]
+}

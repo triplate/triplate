@@ -1,0 +1,151 @@
+[
+  {
+    "name": "iri",
+    "template": "---\nparams { s: iri }\n---\nSELECT * WHERE { ?x a ${s} }",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "expected": "SELECT * WHERE { ?x a <http://example.org/C> }",
+    "roundtrip": true
+  },
+  {
+    "name": "pname",
+    "template": "---\nparams { c: pname }\n---\nPREFIX ex: <http://example.org/>\nSELECT * WHERE { ?x a ${c} }",
+    "context": {
+      "c": "ex:Person"
+    },
+    "expected": "PREFIX ex: <http://example.org/>\nSELECT * WHERE { ?x a ex:Person }",
+    "roundtrip": true
+  },
+  {
+    "name": "string",
+    "template": "---\nparams { l: string }\n---\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT * WHERE { ?x rdfs:label ${l} }",
+    "context": {
+      "l": "Alice"
+    },
+    "expected": "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT * WHERE { ?x rdfs:label \"Alice\" }",
+    "roundtrip": true
+  },
+  {
+    "name": "string escaping",
+    "template": "---\nparams { l: string }\n---\nFILTER(?l = ${l})",
+    "context": {
+      "l": "He said \"hi\"\nback\\slash\ttab"
+    },
+    "expected": "FILTER(?l = \"He said \\\"hi\\\"\\nback\\\\slash\\ttab\")"
+  },
+  {
+    "name": "int",
+    "template": "---\nparams { n: int }\n---\nSELECT * WHERE { ?s ?p ?o } LIMIT ${n}",
+    "context": {
+      "n": 10
+    },
+    "expected": "SELECT * WHERE { ?s ?p ?o } LIMIT 10",
+    "roundtrip": true
+  },
+  {
+    "name": "negative int",
+    "template": "---\nparams { n: int }\n---\nFILTER(?x > ${n})",
+    "context": {
+      "n": -42
+    },
+    "expected": "FILTER(?x > -42)"
+  },
+  {
+    "name": "decimal integral value",
+    "template": "---\nparams { d: decimal }\n---\nFILTER(?x > ${d})",
+    "context": {
+      "d": 4
+    },
+    "expected": "FILTER(?x > 4.0)"
+  },
+  {
+    "name": "double",
+    "template": "---\nparams { d: double }\n---\nFILTER(?x > ${d})",
+    "context": {
+      "d": 1500000
+    },
+    "expected": "FILTER(?x > 1.5E6)"
+  },
+  {
+    "name": "bool",
+    "template": "---\nparams { b: bool }\n---\nFILTER(?a = ${b})",
+    "context": {
+      "b": true
+    },
+    "expected": "FILTER(?a = true)"
+  },
+  {
+    "name": "dateTime from ISO string",
+    "template": "---\nparams { t: dateTime }\n---\nFILTER(?t > ${t})",
+    "context": {
+      "t": "2024-03-01T12:00:00Z"
+    },
+    "expected": "FILTER(?t > \"2024-03-01T12:00:00Z\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)"
+  },
+  {
+    "name": "typed literal",
+    "template": "---\nparams { v: literal(<http://example.org/myType>) }\n---\nFILTER(?x = ${v})",
+    "context": {
+      "v": "abc"
+    },
+    "expected": "FILTER(?x = \"abc\"^^<http://example.org/myType>)"
+  },
+  {
+    "name": "raw",
+    "template": "---\nparams { p: raw }\n---\nSELECT * WHERE { ${p} }",
+    "context": {
+      "p": "?s ?p ?o ."
+    },
+    "expected": "SELECT * WHERE { ?s ?p ?o . }",
+    "roundtrip": true
+  },
+  {
+    "name": "record field via dotted path",
+    "template": "---\nparams { u: { id: iri } }\n---\nSELECT * WHERE { ${u.id} ?p ?o }",
+    "context": {
+      "u": {
+        "id": "http://example.org/u1"
+      }
+    },
+    "expected": "SELECT * WHERE { <http://example.org/u1> ?p ?o }",
+    "roundtrip": true
+  },
+  {
+    "name": "type names are case-insensitive",
+    "template": "---\nparams { s: IRI }\n---\nSELECT * WHERE { ?x a ${s} }",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "expected": "SELECT * WHERE { ?x a <http://example.org/C> }",
+    "roundtrip": true
+  },
+  {
+    "name": "parameter named for is fine",
+    "template": "---\nparams { for: int }\n---\nSELECT * WHERE { ?s ?p ?o } LIMIT ${for}",
+    "context": {
+      "for": 5
+    },
+    "expected": "SELECT * WHERE { ?s ?p ?o } LIMIT 5",
+    "roundtrip": true
+  },
+  {
+    "name": "multi-line header",
+    "template": "---\nparams {\n  s: iri\n  n: int\n}\n---\nSELECT * WHERE { ?x a ${s} } LIMIT ${n}",
+    "context": {
+      "s": "http://example.org/C",
+      "n": 3
+    },
+    "expected": "SELECT * WHERE { ?x a <http://example.org/C> } LIMIT 3",
+    "roundtrip": true
+  },
+  {
+    "name": "extra context keys are rejected",
+    "template": "---\nparams { s: iri }\n---\n?x a ${s}",
+    "context": {
+      "s": "http://example.org/C",
+      "extra": 1
+    },
+    "error": "TriplateBindingError"
+  }
+]

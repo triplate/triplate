@@ -1,0 +1,35 @@
+{
+  "name": "triplate",
+  "version": "0.3.0",
+  "description": "A templating engine for SPARQL queries with typed, injection-safe placeholders and loops",
+  "keywords": ["sparql", "template", "rdf", "query", "injection-safe"],
+  "homepage": "https://triplate.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/triplate/triplate.git",
+    "directory": "triplate-ts"
+  },
+  "bugs": "https://github.com/triplate/triplate/issues",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "sparqljs": "^3.7.3",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
