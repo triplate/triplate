@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "triplate"
-version = "0.3.0"
+version = "0.4.0"
 description = "A templating engine for SPARQL queries with typed, injection-safe placeholders and loops"
 readme = "README.md"
 license = "MIT"
