@@ -234,12 +234,23 @@ class _Lexer:
         self._flush()
         self._advance(2)  # ${
         self._skip_inline()
+        spread = False
+        if self._peek() == "." and self._peek(1) == "." and self._peek(2) == ".":
+            self._advance(3)
+            spread = True
+            self._skip_inline()
         path = self._read_path()
+        join = None
+        join_exact = False
+        if spread:
+            join, join_exact = self._read_join_clause(lambda: self._peek() == "}", "${ … }")
         self._skip_inline()
         if self._peek() != "}":
             self._error("unterminated ${ … }", line, col)
         self._advance(1)
-        self.tokens.append({"kind": "value", "path": path, "line": line, "column": col})
+        self.tokens.append(
+            {"kind": "value", "path": path, "spread": spread, "join": join, "join_exact": join_exact, "line": line, "column": col}
+        )
 
     def _read_hole(self):
         line, col = self.line, self.col
@@ -384,20 +395,14 @@ class _Lexer:
         if self._peek() == "\n":
             self._advance(1)
 
-    def _read_for_header(self):
-        self._skip_inline()
-        item = self._read_ident()
-        self._skip_inline()
-        if self._read_ident().lower() != "in":
-            self._error("expected 'in' in %for")
-        self._skip_inline()
-        source = self._read_path()
+    def _read_join_clause(self, at_end, context):
+        """Parse an optional `join "<sep>" [explicit]` clause, stopping at at_end()."""
         join = None
         join_exact = False
         seen_join = False
         while True:
             self._skip_inline()
-            if self._at_tag_end() or not _is(_IDENT_START, self._peek()):
+            if at_end() or not _is(_IDENT_START, self._peek()):
                 break
             word = self._read_ident().lower()
             if word == "join":
@@ -411,7 +416,18 @@ class _Lexer:
                     self._error("'explicit' requires a preceding join")
                 join_exact = True
             else:
-                self._error(f"unexpected token in %for: {word}")
+                self._error(f"unexpected token in {context}: {word}")
+        return join, join_exact
+
+    def _read_for_header(self):
+        self._skip_inline()
+        item = self._read_ident()
+        self._skip_inline()
+        if self._read_ident().lower() != "in":
+            self._error("expected 'in' in %for")
+        self._skip_inline()
+        source = self._read_path()
+        join, join_exact = self._read_join_clause(self._at_tag_end, "%for")
         self._skip_inline()
         if not self._at_tag_end():
             self._error("unexpected content in %for directive")

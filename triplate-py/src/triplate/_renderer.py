@@ -146,8 +146,11 @@ def _render(nodes, env):
         if isinstance(node, TextNode):
             out.append(node.value)
         elif isinstance(node, ValueNode):
-            value, type_, _ = _resolve(env, node.path, node, True)
-            out.append(_serialize_scalar(_scalar_of(type_, node.path, node), value, node))
+            if node.spread:
+                out.append(_render_spread(env, node))
+            else:
+                value, type_, _ = _resolve(env, node.path, node, True)
+                out.append(_serialize_scalar(_scalar_of(type_, node.path, node), value, node))
         elif isinstance(node, InterpNode):
             out.append(_render_interp(env, node))
         elif isinstance(node, IriNode):
@@ -157,6 +160,33 @@ def _render(nodes, env):
         elif isinstance(node, IfNode):
             out.append(_render_if(env, node))
     return "".join(out)
+
+
+def _render_spread(env, node):
+    value, type_, _ = _resolve(env, node.path, node, True)
+    if not type_.array or not isinstance(value, (list, tuple)):
+        raise TriplateTypeError(f"{'.'.join(node.path)} is not a list", node.line, node.column)
+    elem = TypeExpr(type_.base, False, False, None, None)
+    t = _scalar_of(elem, node.path, node)
+    chunks = [_serialize_scalar(t, item, node) for item in value]
+    return _join_chunks(chunks, node.join, node.join_exact, " ")
+
+
+def _join_chunks(chunks, join, join_exact, default_sep):
+    """Join rendered chunks per a `join "<sep>" [explicit]` clause, trimming boundary whitespace."""
+    if join is None:
+        separator = default_sep
+    elif join_exact:
+        separator = join
+    else:
+        trimmed = join.strip()
+        separator = f" {trimmed} " if trimmed else " "
+    if separator == "":
+        return "".join(chunks)
+    out = chunks[0] if chunks else ""
+    for chunk in chunks[1:]:
+        out = _TRAILING_WS.sub("", out) + separator + _LEADING_WS.sub("", chunk)
+    return out
 
 
 def _serialize_scalar(t, value, pos):
@@ -263,17 +293,7 @@ def _render_for(env, node):
     for item in value:
         child = {"schema": env["schema"], "context": env["context"], "loop": env["loop"] + [{node.item: (item, elem)}]}
         chunks.append(_render(node.body, child))
-    if node.join is None:
-        return "".join(chunks)
-    if node.join_exact:
-        separator = node.join
-    else:
-        trimmed = node.join.strip()
-        separator = f" {trimmed} " if trimmed else " "
-    out = chunks[0] if chunks else ""
-    for chunk in chunks[1:]:
-        out = _TRAILING_WS.sub("", out) + separator + _LEADING_WS.sub("", chunk)
-    return out
+    return _join_chunks(chunks, node.join, node.join_exact, "")
 
 
 def _eval_cond(env, cond):

@@ -52,4 +52,12 @@ public final class Triplate {
   public static String render(String template) {
     return render(template, Map.of());
   }
+
+  private static final java.util.regex.Pattern HEADER =
+      java.util.regex.Pattern.compile("^---[ \\t]*(\\r?\\n|$)");
+
+  /** Returns true if {@code text} opens with a {@code ---} frontmatter header. */
+  public static boolean isTemplate(String text) {
+    return HEADER.matcher(text).lookingAt();
+  }
 }

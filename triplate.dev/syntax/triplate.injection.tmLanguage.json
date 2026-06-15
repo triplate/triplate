@@ -38,7 +38,12 @@
       },
       "end": "(\\})",
       "endCaptures": { "1": { "name": "punctuation.section.embedded.end.triplate" } },
-      "patterns": [{ "include": "#path" }]
+      "patterns": [
+        { "match": "\\.\\.\\.", "name": "keyword.operator.spread.triplate" },
+        { "match": "(?i)\\b(join|explicit)\\b", "name": "keyword.other.triplate" },
+        { "match": "\"(\\\\.|[^\"\\\\])*\"", "name": "string.quoted.double.triplate" },
+        { "include": "#path" }
+      ]
     },
 
     "path": {

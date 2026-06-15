@@ -1,0 +1,70 @@
+[
+  {
+    "name": "spread default separator is a single space",
+    "template": "---\nparams { graphs: iri[] }\n---\nSELECT * WHERE {\n  ?s ?p ?o .\n  VALUES ?g { ${...graphs} }\n}",
+    "context": {
+      "graphs": [
+        "http://example.org/a",
+        "http://example.org/b",
+        "http://example.org/c"
+      ]
+    },
+    "expected": "SELECT * WHERE {\n  ?s ?p ?o .\n  VALUES ?g { <http://example.org/a> <http://example.org/b> <http://example.org/c> }\n}",
+    "roundtrip": true
+  },
+  {
+    "name": "spread with padded join",
+    "template": "---\nparams { ids: int[] }\n---\nSELECT * WHERE { ?s ?p ?o . FILTER(?o IN (${...ids join \",\"})) }",
+    "context": {
+      "ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    "expected": "SELECT * WHERE { ?s ?p ?o . FILTER(?o IN (1 , 2 , 3)) }",
+    "roundtrip": true
+  },
+  {
+    "name": "spread with explicit join is verbatim",
+    "template": "---\nparams { ids: int[] }\n---\nSELECT * WHERE { ?s ?p ?o . FILTER(?o IN (${...ids join \",\" explicit})) }",
+    "context": {
+      "ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    "expected": "SELECT * WHERE { ?s ?p ?o . FILTER(?o IN (1,2,3)) }",
+    "roundtrip": true
+  },
+  {
+    "name": "spread of single item has no separator",
+    "template": "---\nparams { graphs: iri[] }\n---\nVALUES ?g { ${...graphs join \",\"} }",
+    "context": {
+      "graphs": [
+        "http://example.org/a"
+      ]
+    },
+    "expected": "VALUES ?g { <http://example.org/a> }"
+  },
+  {
+    "name": "spread of empty list renders nothing",
+    "template": "---\nparams { graphs: iri[] }\n---\nVALUES ?g { ${...graphs} }",
+    "context": {
+      "graphs": []
+    },
+    "expected": "VALUES ?g {  }"
+  },
+  {
+    "name": "spread of string array",
+    "template": "---\nparams { tags: string[] }\n---\nVALUES ?t { ${...tags} }",
+    "context": {
+      "tags": [
+        "a",
+        "b"
+      ]
+    },
+    "expected": "VALUES ?t { \"a\" \"b\" }"
+  }
+]

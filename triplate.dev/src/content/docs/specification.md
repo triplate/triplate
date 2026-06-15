@@ -3,6 +3,13 @@ title: Specification (v0.3)
 description: The Triplate language specification — host-agnostic templating for SPARQL, Turtle, TriG and N-Triples.
 ---
 
+:::note[Document status]
+- **Version:** 0.3
+- **Status:** Draft — the language surface may still change before 1.0.
+- **Date:** 2026-06-15
+- **Authors:** Sebastian Faubel; Claude Code
+:::
+
 Triplate is a templating language for RDF query and data languages. A template
 declares its inputs in a mandatory `---` frontmatter header and uses `${ }`
 substitutions, `$"…"` / `$<…>` constructs, and `{% for %}` / `{% if %}`
@@ -104,6 +111,26 @@ differently by **construct**:
 | inside `$<…>` | the value's lexical content, **percent-encoded**; the assembled IRI is validated absolute |
 
 `raw` values are inserted verbatim in all three.
+
+### Spread — `${ ... path }`
+
+```
+VALUES ?g { ${...graphs} }                 →  VALUES ?g { <…a> <…b> <…c> }
+FILTER(?o IN (${...ids join ","}))         →  FILTER(?o IN (1 , 2 , 3))
+FILTER(?o IN (${...ids join "," explicit}))→  FILTER(?o IN (1,2,3))
+```
+
+`${ ...path }` expands an **array** of a serializable scalar, serializing each
+element exactly as a standalone `${element}` would, then joining them. `path`
+must resolve to an array (a non-array is a type error) of a scalar — a record
+array is a type error; loop over it with `{% for %}` instead. An empty array
+emits nothing.
+
+The optional `join "<text>" [explicit]` clause is identical to the loop's (§6):
+the text is padded with one space each side unless `explicit`. Unlike the loop,
+the **default separator (no `join`) is a single space**, since adjacent terms
+need a delimiter to be valid (`<a> <b>`, not `<a><b>`). `join`/`explicit` are
+only valid after `...`.
 
 ## 4. Strings — `$"…"`
 

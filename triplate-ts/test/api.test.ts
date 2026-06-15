@@ -86,6 +86,23 @@ describe('API behaviour', () => {
     expect(render(H('xs: string[]', ebody), { xs: ['a', 'b'] })).toBe('"a","b"');
   });
 
+  it('frontmatterPrefixes recovers prefixes from example values and literal types', () => {
+    const tmpl = compile(
+      '---\n' +
+        'params {\n  type: iri\n  amount: literal(xsd:decimal)\n  note: string\n}\n' +
+        'example demo "Demo" {\n  type: schema:Person\n  amount: "5"\n  note: "n"^^my:dt\n}\n' +
+        '---\n${type}',
+    );
+    expect([...tmpl.frontmatterPrefixes()].sort()).toEqual(['my', 'schema', 'xsd']);
+  });
+
+  it('frontmatterPrefixes ignores full <iri> values (no prefix)', () => {
+    const tmpl = compile(
+      '---\nparams {\n  type: iri\n}\nexample demo "D" {\n  type: <http://example.org/Person>\n}\n---\n${type}',
+    );
+    expect(tmpl.frontmatterPrefixes().size).toBe(0);
+  });
+
   it('undeclared variable is a compile-time error', () => {
     expect(() => compile(H('s: iri', '${t}'))).toThrow(TriplateSyntaxError);
   });

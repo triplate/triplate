@@ -57,7 +57,7 @@ export function render(data: CompiledTemplateData, context: Scope): string {
 
 // ---- context validation (up front) --------------------------------------
 
-function validateContext(schema: Schema, context: Scope): void {
+export function validateContext(schema: Schema, context: Scope): void {
   for (const key of Object.keys(context)) {
     if (!(key in schema.byName)) {
       throw new TriplateBindingError(`unknown parameter: ${key}`);
@@ -164,8 +164,7 @@ function renderNodes(nodes: Node[], env: Env): string {
         out += node.value;
         break;
       case 'value': {
-        const { value, type } = resolve(env, node.path, node, true);
-        out += serializeScalar(scalarOf(type, node.path, node), value, node);
+        out += node.spread ? renderSpread(env, node) : renderValue(env, node);
         break;
       }
       case 'interp':
@@ -181,6 +180,39 @@ function renderNodes(nodes: Node[], env: Env): string {
         out += renderIf(env, node);
         break;
     }
+  }
+  return out;
+}
+
+function renderValue(env: Env, node: Extract<Node, { type: 'value' }>): string {
+  const { value, type } = resolve(env, node.path, node, true);
+  return serializeScalar(scalarOf(type, node.path, node), value, node);
+}
+
+function renderSpread(env: Env, node: Extract<Node, { type: 'value' }>): string {
+  const { value, type } = resolve(env, node.path, node, true);
+  if (!type.array || !Array.isArray(value)) {
+    throw new TriplateTypeError(`${node.path.join('.')} is not a list`, node.line, node.column);
+  }
+  const elemType: TypeExpr = { base: type.base, array: false, optional: false };
+  const t = scalarOf(elemType, node.path, node);
+  const chunks = value.map((item) => serializeScalar(t, item, node));
+  return joinChunks(chunks, node.join, node.joinExact, ' ');
+}
+
+/** Join rendered chunks with a `join "<sep>" [explicit]` clause, trimming boundary whitespace. */
+function joinChunks(chunks: string[], join: string | undefined, joinExact: boolean | undefined, defaultSep: string): string {
+  let separator: string;
+  if (join === undefined) separator = defaultSep;
+  else if (joinExact) separator = join;
+  else {
+    const trimmed = join.trim();
+    separator = trimmed ? ` ${trimmed} ` : ' ';
+  }
+  if (separator === '') return chunks.join('');
+  let out = chunks[0] ?? '';
+  for (let i = 1; i < chunks.length; i++) {
+    out = out.replace(/\s+$/, '') + separator + chunks[i].replace(/^\s+/, '');
   }
   return out;
 }
@@ -270,18 +302,7 @@ function renderFor(env: Env, node: Extract<Node, { type: 'for' }>): string {
   const chunks = value.map((item) =>
     renderNodes(node.body, { schema: env.schema, context: env.context, loop: [...env.loop, { [node.item]: { value: item, type: elemType } }] }),
   );
-  if (node.join === undefined) return chunks.join('');
-  let separator: string;
-  if (node.joinExact) separator = node.join;
-  else {
-    const trimmed = node.join.trim();
-    separator = trimmed ? ` ${trimmed} ` : ' ';
-  }
-  let out = chunks[0] ?? '';
-  for (let i = 1; i < chunks.length; i++) {
-    out = out.replace(/\s+$/, '') + separator + chunks[i].replace(/^\s+/, '');
-  }
-  return out;
+  return joinChunks(chunks, node.join, node.joinExact, '');
 }
 
 function evalCond(env: Env, cond: Cond): boolean {

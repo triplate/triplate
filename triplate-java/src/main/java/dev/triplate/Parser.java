@@ -50,7 +50,7 @@ final class Parser {
             throw new TriplateSyntaxError("duplicate example id: " + e.id(), e.line(), e.column());
           }
         }
-        examples.add(new ExampleSet(e.id(), e.description(), e.bindings()));
+        examples.add(new ExampleSet(e.id(), e.description(), e.bindings(), e.line(), e.column()));
       } else if (t instanceof Lexer.Txt txt && schema == null) {
         if (!txt.value().trim().isEmpty()) {
           throw new TriplateSyntaxError("content before the --- frontmatter header");
@@ -91,7 +91,7 @@ final class Parser {
       if (t instanceof Lexer.Txt txt) {
         current(stack).add(new Ast.TextNode(txt.value()));
       } else if (t instanceof Lexer.Val v) {
-        current(stack).add(new Ast.ValueNode(v.path(), v.line(), v.column()));
+        current(stack).add(new Ast.ValueNode(v.path(), v.spread(), v.join(), v.joinExact(), v.line(), v.column()));
       } else if (t instanceof Lexer.Interp i) {
         current(stack).add(new Ast.InterpNode(i.parts(), i.lang(), i.datatype(), i.line(), i.column()));
       } else if (t instanceof Lexer.Iri ir) {

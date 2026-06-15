@@ -35,7 +35,7 @@ def parse(template):
         elif t["kind"] == "examples":
             if any(e.id == t["id"] for e in examples):
                 raise TriplateSyntaxError(f"duplicate example id: {t['id']}", t["line"], t["column"])
-            examples.append(ExampleSet(t["id"], t["description"], t["bindings"]))
+            examples.append(ExampleSet(t["id"], t["description"], t["bindings"], t["line"], t["column"]))
         elif t["kind"] == "text" and schema is None:
             if t["value"].strip() != "":
                 raise TriplateSyntaxError("content before the --- frontmatter header")
@@ -68,7 +68,9 @@ def _build_tree(tokens):
         if k == "text":
             current().append(TextNode(t["value"]))
         elif k == "value":
-            current().append(ValueNode(t["path"], t["line"], t["column"]))
+            current().append(
+                ValueNode(t["path"], t["line"], t["column"], t["spread"], t["join"], t["join_exact"])
+            )
         elif k == "interp":
             current().append(InterpNode(t["parts"], t["lang"], t["datatype"], t["line"], t["column"]))
         elif k == "iri":

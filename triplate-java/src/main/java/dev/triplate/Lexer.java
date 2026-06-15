@@ -26,7 +26,8 @@ final class Lexer {
 
   record Txt(String value) implements Token {}
 
-  record Val(List<String> path, int line, int column) implements Token {}
+  record Val(List<String> path, boolean spread, String join, boolean joinExact, int line, int column)
+      implements Token {}
 
   record Interp(List<Part> parts, LangSpec lang, String datatype, int line, int column) implements Token {}
 
@@ -329,11 +330,24 @@ final class Lexer {
     flushText();
     advance(2); // ${
     skipInline();
+    boolean spread = false;
+    if (peek() == '.' && peek(1) == '.' && peek(2) == '.') {
+      advance(3);
+      spread = true;
+      skipInline();
+    }
     List<String> path = readPath();
+    String join = null;
+    boolean joinExact = false;
+    if (spread) {
+      JoinClause jc = readJoinClause(() -> peek() == '}', "${ … }");
+      join = jc.join();
+      joinExact = jc.joinExact();
+    }
     skipInline();
     if (peek() != '}') throw error("unterminated ${ … }", startLine, startCol);
     advance(1);
-    tokens.add(new Val(path, startLine, startCol));
+    tokens.add(new Val(path, spread, join, joinExact, startLine, startCol));
   }
 
   private record Hole(List<String> path, int line, int column) {}
@@ -496,19 +510,16 @@ final class Lexer {
     if (peek() == '\n') advance(1);
   }
 
-  private ForTok readForHeader(int startLine, int startCol) {
-    skipInline();
-    String item = readIdent();
-    skipInline();
-    if (!readIdent().equalsIgnoreCase("in")) throw error("expected 'in' in %for");
-    skipInline();
-    List<String> source = readPath();
+  private record JoinClause(String join, boolean joinExact) {}
+
+  /** Parse an optional {@code join "<sep>" [explicit]} clause, stopping at {@code atEnd}. */
+  private JoinClause readJoinClause(java.util.function.BooleanSupplier atEnd, String context) {
     String join = null;
     boolean joinExact = false;
     boolean seenJoin = false;
     for (; ; ) {
       skipInline();
-      if (atTagEnd() || !isIdentStart(peek())) break;
+      if (atEnd.getAsBoolean() || !isIdentStart(peek())) break;
       String word = readIdent().toLowerCase();
       if (word.equals("join")) {
         if (seenJoin) throw error("duplicate join");
@@ -519,13 +530,24 @@ final class Lexer {
         if (!seenJoin) throw error("'explicit' requires a preceding join");
         joinExact = true;
       } else {
-        throw error("unexpected token in %for: " + word);
+        throw error("unexpected token in " + context + ": " + word);
       }
     }
+    return new JoinClause(join, joinExact);
+  }
+
+  private ForTok readForHeader(int startLine, int startCol) {
+    skipInline();
+    String item = readIdent();
+    skipInline();
+    if (!readIdent().equalsIgnoreCase("in")) throw error("expected 'in' in %for");
+    skipInline();
+    List<String> source = readPath();
+    JoinClause jc = readJoinClause(this::atTagEnd, "%for");
     skipInline();
     if (!atTagEnd()) throw error("unexpected content in %for directive");
     advance(2);
-    return new ForTok(item, source, join, joinExact, startLine, startCol);
+    return new ForTok(item, source, jc.join(), jc.joinExact(), startLine, startCol);
   }
 
   private Cond readCond() {

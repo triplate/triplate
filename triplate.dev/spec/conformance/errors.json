@@ -54,6 +54,34 @@
     "error": "TriplateTypeError"
   },
   {
+    "name": "spread of a scalar",
+    "template": "---\nparams { s: iri }\n---\n?x a ${...s}",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "spread of a record array",
+    "template": "---\nparams { people: { id: iri }[] }\n---\nVALUES ?p { ${...people} }",
+    "context": {
+      "people": [
+        {
+          "id": "http://example.org/p1"
+        }
+      ]
+    },
+    "error": "TriplateTypeError"
+  },
+  {
+    "name": "join clause on a non-spread value",
+    "template": "---\nparams { s: iri }\n---\n?x a ${s join \",\"}",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "error": "TriplateSyntaxError"
+  },
+  {
     "name": "cardinality min violated",
     "template": "---\nparams { classes: iri[] min 1 }\n---\n{% for c in classes %}${c}{% endfor %}",
     "context": {

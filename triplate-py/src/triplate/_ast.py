@@ -71,6 +71,9 @@ class ValueNode:
     path: RefPath
     line: int
     column: int
+    spread: bool = False
+    join: Optional[str] = None
+    join_exact: bool = False
 
 
 @dataclass(frozen=True)
@@ -172,6 +175,8 @@ class ExampleSet:
     id: str
     description: Optional[str]
     bindings: Dict[str, ExampleValue]
+    line: int = 0
+    column: int = 0
 
 
 @dataclass

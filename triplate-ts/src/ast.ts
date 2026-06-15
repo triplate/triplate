@@ -53,6 +53,9 @@ export interface TextNode {
 export interface ValueNode {
   type: 'value';
   path: RefPath;
+  spread?: boolean;
+  join?: string;
+  joinExact?: boolean;
   line: number;
   column: number;
 }
@@ -115,6 +118,8 @@ export interface ExampleSet {
   id: string;
   description?: string;
   bindings: Record<string, ExampleValue>;
+  line: number;
+  column: number;
 }
 
 export interface CompiledTemplateData {

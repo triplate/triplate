@@ -70,7 +70,8 @@ public final class Ast {
 
   public record TextNode(String value) implements Node {}
 
-  public record ValueNode(List<String> path, int line, int column) implements Node {}
+  public record ValueNode(List<String> path, boolean spread, String join, boolean joinExact, int line, int column)
+      implements Node {}
 
   public record InterpNode(List<Part> parts, LangSpec lang, String datatype, int line, int column)
       implements Node {}
@@ -139,7 +140,8 @@ public final class Ast {
 
   public record RecordVal(Map<String, ExampleValue> fields) implements ExampleValue {}
 
-  public record ExampleSet(String id, String description, Map<String, ExampleValue> bindings) {}
+  public record ExampleSet(
+      String id, String description, Map<String, ExampleValue> bindings, int line, int column) {}
 
   public record CompiledTemplateData(Schema schema, List<ExampleSet> examples, List<Node> body) {}
 }

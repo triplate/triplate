@@ -14,7 +14,7 @@ import { hasCustomType } from './types/index.js';
 
 export type Token =
   | { kind: 'text'; value: string }
-  | { kind: 'value'; path: RefPath; line: number; column: number }
+  | { kind: 'value'; path: RefPath; spread?: boolean; join?: string; joinExact?: boolean; line: number; column: number }
   | { kind: 'interp'; parts: Part[]; lang?: LangSpec; datatype?: string; line: number; column: number }
   | { kind: 'iri'; parts: Part[]; line: number; column: number }
   | { kind: 'params'; decls: ParamDecl[]; line: number; column: number }
@@ -222,11 +222,22 @@ class Lexer {
     this.flushText();
     this.advance(2); // ${
     this.skipInline();
+    let spread = false;
+    if (this.peek() === '.' && this.peek(1) === '.' && this.peek(2) === '.') {
+      this.advance(3);
+      spread = true;
+      this.skipInline();
+    }
     const path = this.readPath();
+    let join: string | undefined;
+    let joinExact = false;
+    if (spread) {
+      ({ join, joinExact } = this.readJoinClause(() => this.peek() === '}', '${ … }'));
+    }
     this.skipInline();
     if (this.peek() !== '}') this.error('unterminated ${ … }', line, col);
     this.advance(1);
-    this.tokens.push({ kind: 'value', path, line, column: col });
+    this.tokens.push({ kind: 'value', path, spread, join, joinExact, line, column: col });
   }
 
   private readHole(): { path: RefPath; line: number; column: number } {
@@ -384,19 +395,14 @@ class Lexer {
     if (this.peek() === '\n') this.advance(1);
   }
 
-  private readForHeader(): { item: string; source: RefPath; join?: string; joinExact?: boolean } {
-    this.skipInline();
-    const item = this.readIdent();
-    this.skipInline();
-    if (this.readIdent().toLowerCase() !== 'in') this.error("expected 'in' in %for");
-    this.skipInline();
-    const source = this.readPath();
+  /** Parse an optional `join "<sep>" [explicit]` clause, stopping at `atEnd`. */
+  private readJoinClause(atEnd: () => boolean, context: string): { join?: string; joinExact: boolean } {
     let join: string | undefined;
     let joinExact = false;
     let seenJoin = false;
     for (;;) {
       this.skipInline();
-      if (this.atTagEnd() || !isIdentStart(this.peek())) break;
+      if (atEnd() || !isIdentStart(this.peek())) break;
       const word = this.readIdent().toLowerCase();
       if (word === 'join') {
         if (seenJoin) this.error('duplicate join');
@@ -407,9 +413,20 @@ class Lexer {
         if (!seenJoin) this.error("'explicit' requires a preceding join");
         joinExact = true;
       } else {
-        this.error(`unexpected token in %for: ${word}`);
+        this.error(`unexpected token in ${context}: ${word}`);
       }
     }
+    return { join, joinExact };
+  }
+
+  private readForHeader(): { item: string; source: RefPath; join?: string; joinExact?: boolean } {
+    this.skipInline();
+    const item = this.readIdent();
+    this.skipInline();
+    if (this.readIdent().toLowerCase() !== 'in') this.error("expected 'in' in %for");
+    this.skipInline();
+    const source = this.readPath();
+    const { join, joinExact } = this.readJoinClause(() => this.atTagEnd(), '%for');
     this.skipInline();
     if (!this.atTagEnd()) this.error('unexpected content in %for directive');
     this.advance(2);

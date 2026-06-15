@@ -31,7 +31,7 @@ export function parse(template: string): CompiledTemplateData {
       if (examples.some((e) => e.id === t.id)) {
         throw new TriplateSyntaxError(`duplicate example id: ${t.id}`, t.line, t.column);
       }
-      examples.push({ id: t.id, description: t.description, bindings: t.bindings });
+      examples.push({ id: t.id, description: t.description, bindings: t.bindings, line: t.line, column: t.column });
     } else if (t.kind === 'text' && schema === undefined) {
       if (t.value.trim() !== '') throw new TriplateSyntaxError('content before the --- frontmatter header');
     } else {
@@ -67,7 +67,7 @@ function buildTree(tokens: Token[]): Node[] {
         append({ type: 'text', value: t.value });
         break;
       case 'value':
-        append({ type: 'value', path: t.path, line: t.line, column: t.column });
+        append({ type: 'value', path: t.path, spread: t.spread, join: t.join, joinExact: t.joinExact, line: t.line, column: t.column });
         break;
       case 'interp':
         append({ type: 'interp', parts: t.parts, lang: t.lang, datatype: t.datatype, line: t.line, column: t.column });

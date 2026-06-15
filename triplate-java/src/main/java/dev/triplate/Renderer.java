@@ -49,7 +49,7 @@ final class Renderer {
 
   // ---- context validation (up front) --------------------------------------
 
-  private static void validateContext(Schema schema, Map<String, Object> context) {
+  static void validateContext(Schema schema, Map<String, Object> context) {
     for (String key : context.keySet()) {
       if (!schema.byName().containsKey(key)) {
         throw new TriplateBindingError("unknown parameter: " + key);
@@ -182,9 +182,7 @@ final class Renderer {
       if (node instanceof Ast.TextNode t) {
         out.append(t.value());
       } else if (node instanceof ValueNode v) {
-        Pos pos = Pos.at(v.line(), v.column());
-        Resolved r = resolve(env, v.path(), pos, true);
-        out.append(serializeScalar(scalarOf(r.type(), v.path(), pos), r.value(), pos));
+        out.append(v.spread() ? renderSpread(env, v) : renderValue(env, v));
       } else if (node instanceof InterpNode i) {
         out.append(renderInterp(env, i));
       } else if (node instanceof IriNode ir) {
@@ -196,6 +194,46 @@ final class Renderer {
       }
     }
     return out.toString();
+  }
+
+  private static String renderValue(Env env, ValueNode v) {
+    Pos pos = Pos.at(v.line(), v.column());
+    Resolved r = resolve(env, v.path(), pos, true);
+    return serializeScalar(scalarOf(r.type(), v.path(), pos), r.value(), pos);
+  }
+
+  private static String renderSpread(Env env, ValueNode v) {
+    Pos pos = Pos.at(v.line(), v.column());
+    Resolved r = resolve(env, v.path(), pos, true);
+    if (!r.type().array() || !(r.value() instanceof List<?> list)) {
+      throw new TriplateTypeError(String.join(".", v.path()) + " is not a list", v.line(), v.column());
+    }
+    ScalarType t = scalarOf(r.type().elem(), v.path(), pos);
+    List<String> chunks = new ArrayList<>();
+    for (Object item : list) {
+      chunks.add(serializeScalar(t, item, pos));
+    }
+    return joinChunks(chunks, v.join(), v.joinExact(), " ");
+  }
+
+  /** Join rendered chunks per a {@code join "<sep>" [explicit]} clause, trimming boundary whitespace. */
+  private static String joinChunks(List<String> chunks, String join, boolean joinExact, String defaultSep) {
+    String separator;
+    if (join == null) {
+      separator = defaultSep;
+    } else if (joinExact) {
+      separator = join;
+    } else {
+      String trimmed = join.strip();
+      separator = trimmed.isEmpty() ? " " : " " + trimmed + " ";
+    }
+    if (separator.isEmpty()) return String.join("", chunks);
+    if (chunks.isEmpty()) return "";
+    String out = chunks.get(0);
+    for (int i = 1; i < chunks.size(); i++) {
+      out = trimEnd(out) + separator + trimStart(chunks.get(i));
+    }
+    return out;
   }
 
   private static String serializeScalar(ScalarType t, Object value, Pos pos) {
@@ -301,20 +339,7 @@ final class Renderer {
       loop.add(frame);
       chunks.add(renderNodes(node.body, new Env(env.schema, env.context, loop)));
     }
-    if (node.join == null) return String.join("", chunks);
-    String separator;
-    if (node.joinExact) {
-      separator = node.join;
-    } else {
-      String trimmed = node.join.strip();
-      separator = trimmed.isEmpty() ? " " : " " + trimmed + " ";
-    }
-    if (chunks.isEmpty()) return "";
-    String out = chunks.get(0);
-    for (int i = 1; i < chunks.size(); i++) {
-      out = trimEnd(out) + separator + trimStart(chunks.get(i));
-    }
-    return out;
+    return joinChunks(chunks, node.join, node.joinExact, "");
   }
 
   private static String trimEnd(String s) {

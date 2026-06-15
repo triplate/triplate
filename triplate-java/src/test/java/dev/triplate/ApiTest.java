@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,6 +31,23 @@ class ApiTest {
   @Test
   void undeclaredVariableThrowsAtCompileTime() {
     assertThrows(TriplateSyntaxError.class, () -> Triplate.compile(h("s: iri", "?x a ${t}")));
+  }
+
+  @Test
+  void frontmatterPrefixesFromExamplesAndLiteralTypes() {
+    CompiledTemplate tmpl = Triplate.compile(
+        "---\n"
+            + "params {\n  type: iri\n  amount: literal(xsd:decimal)\n  note: string\n}\n"
+            + "example demo \"Demo\" {\n  type: schema:Person\n  amount: \"5\"\n  note: \"n\"^^my:dt\n}\n"
+            + "---\n${type}");
+    assertEquals(Set.of("my", "schema", "xsd"), tmpl.frontmatterPrefixes());
+  }
+
+  @Test
+  void frontmatterPrefixesIgnoresFullIri() {
+    CompiledTemplate tmpl = Triplate.compile(
+        "---\nparams {\n  type: iri\n}\nexample demo \"D\" {\n  type: <http://example.org/Person>\n}\n---\n${type}");
+    assertTrue(tmpl.frontmatterPrefixes().isEmpty());
   }
 
   @Test

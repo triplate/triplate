@@ -97,6 +97,23 @@ def test_explicit_join():
     assert render(H("xs: string[]", '{% for c in xs join "," explicit %}${c}{% endfor %}'), xs=["a", "b"]) == '"a","b"'
 
 
+def test_frontmatter_prefixes():
+    tmpl = compile(
+        "---\n"
+        "params {\n  type: iri\n  amount: literal(xsd:decimal)\n  note: string\n}\n"
+        'example demo "Demo" {\n  type: schema:Person\n  amount: "5"\n  note: "n"^^my:dt\n}\n'
+        "---\n${type}"
+    )
+    assert tmpl.frontmatter_prefixes() == {"my", "schema", "xsd"}
+
+
+def test_frontmatter_prefixes_ignores_full_iri():
+    tmpl = compile(
+        '---\nparams {\n  type: iri\n}\nexample demo "D" {\n  type: <http://example.org/Person>\n}\n---\n${type}'
+    )
+    assert tmpl.frontmatter_prefixes() == set()
+
+
 def test_undeclared_is_compile_error():
     with pytest.raises(TriplateSyntaxError):
         compile(H("s: iri", "${t}"))

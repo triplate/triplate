@@ -74,7 +74,15 @@ export default defineConfig({
           label: 'Reference',
           items: [
             { label: 'Specification', slug: 'specification' },
-            { label: 'API (TypeScript, Python & Java)', slug: 'reference/api' },
+            {
+              label: 'API',
+              items: [
+                { label: 'Overview', slug: 'reference/api' },
+                { label: 'TypeScript', slug: 'reference/api/typescript' },
+                { label: 'Python', slug: 'reference/api/python' },
+                { label: 'Java', slug: 'reference/api/java' },
+              ],
+            },
             { label: 'Security Model', slug: 'reference/security' },
           ],
         },
