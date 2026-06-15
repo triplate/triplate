@@ -82,6 +82,9 @@ final class Lexer {
   private int line = 1;
   private int col = 1;
   private final List<Token> tokens = new ArrayList<>();
+  /** Positioned source symbols, accumulated in source order. {@code pos} is an
+   *  absolute, 0-based UTF-16 offset, so it doubles as the symbol offset. */
+  private final List<Ast.TemplateSymbol> symbols = new ArrayList<>();
   private StringBuilder buf = new StringBuilder();
   private boolean lineHasContent = false;
   private String stringDelim = null;
@@ -92,6 +95,31 @@ final class Lexer {
 
   static List<Token> tokenize(String source) {
     return new Lexer(source).run();
+  }
+
+  /** Tokens plus the positioned source symbols collected in the same pass. */
+  record LexResult(List<Token> tokens, List<Ast.TemplateSymbol> symbols) {}
+
+  /** Tokenize and collect positioned source symbols in a single pass. */
+  static LexResult lex(String source) {
+    Lexer lexer = new Lexer(source);
+    List<Token> tokens = lexer.run();
+    return new LexResult(tokens, lexer.symbols);
+  }
+
+  /**
+   * Lenient symbol extraction for IDE features over possibly-malformed
+   * templates: returns the positioned symbols collected up to the first syntax
+   * error (i.e. "what parsed") instead of throwing.
+   */
+  static List<Ast.TemplateSymbol> extractSymbols(String source) {
+    Lexer lexer = new Lexer(source);
+    try {
+      lexer.run();
+    } catch (TriplateSyntaxError e) {
+      // Swallow the syntax error and return what was collected before it.
+    }
+    return lexer.symbols;
   }
 
   List<Token> run() {
@@ -322,6 +350,24 @@ final class Lexer {
     return tok.toString();
   }
 
+  // ---- positioned symbols --------------------------------------------------
+
+  /** Emit a body reference symbol for the root segment of a {@code ${…}}/{@code {% … %}} path. */
+  private void emitRef(int rootStart, List<String> path) {
+    String root = path.get(0);
+    symbols.add(new Ast.ParamRefSym(root, rootStart, rootStart + root.length()));
+  }
+
+  /** Emit a datatype reference ({@code <iri>} or {@code prefix:local}) as an iri/pname symbol. */
+  private void emitDatatypeRef(int start, int end, String dt) {
+    if (dt.startsWith("<")) {
+      symbols.add(new Ast.IriSym(dt.substring(1, dt.length() - 1), start, end));
+    } else {
+      int i = dt.indexOf(':');
+      symbols.add(new Ast.PnameSym(dt.substring(0, i), dt.substring(i + 1), start, end));
+    }
+  }
+
   // ---- value constructs ----------------------------------------------------
 
   private void lexValue() {
@@ -336,7 +382,9 @@ final class Lexer {
       spread = true;
       skipInline();
     }
+    int rootStart = pos;
     List<String> path = readPath();
+    emitRef(rootStart, path);
     String join = null;
     boolean joinExact = false;
     if (spread) {
@@ -357,7 +405,9 @@ final class Lexer {
     int startCol = col;
     advance(2); // ${
     skipInline();
+    int rootStart = pos;
     List<String> path = readPath();
+    emitRef(rootStart, path);
     skipInline();
     if (peek() != '}') throw error("unterminated ${ … } hole", startLine, startCol);
     advance(1);
@@ -542,7 +592,9 @@ final class Lexer {
     skipInline();
     if (!readIdent().equalsIgnoreCase("in")) throw error("expected 'in' in %for");
     skipInline();
+    int rootStart = pos;
     List<String> source = readPath();
+    emitRef(rootStart, source);
     JoinClause jc = readJoinClause(this::atTagEnd, "%for");
     skipInline();
     if (!atTagEnd()) throw error("unexpected content in %for directive");
@@ -569,7 +621,9 @@ final class Lexer {
         col = saveCol;
       }
     }
+    int rootStart = pos;
     List<String> path = readPath();
+    emitRef(rootStart, path);
     return new Cond(negated, path, condLine, condCol);
   }
 
@@ -640,7 +694,9 @@ final class Lexer {
         break;
       }
       if (peek() == '\0') throw error("unterminated params { … }", l, c);
+      int nameStart = pos;
       String name = readIdent();
+      symbols.add(new Ast.ParamDeclSym(name, nameStart, pos));
       skipInline();
       if (peek() != ':') throw error("expected ':' after parameter '" + name + "'");
       advance(1);
@@ -667,7 +723,9 @@ final class Lexer {
         break;
       }
       if (peek() == '\0') throw error("unterminated example { … }", l, c);
+      int nameStart = pos;
       String name = readIdent();
+      symbols.add(new Ast.BindingKeySym(name, nameStart, pos));
       skipInline();
       if (peek() != ':') throw error("expected ':' after '" + name + "' in example");
       advance(1);
@@ -720,7 +778,9 @@ final class Lexer {
     if (low.equals("literal")) {
       if (peek() != '(') throw error("expected '(' after literal");
       advance(1);
+      int dtStart = pos;
       String datatype = readDatatypeRef();
+      emitDatatypeRef(dtStart, pos, datatype);
       if (peek() != ')') throw error("expected ')' after literal datatype");
       advance(1);
       return ScalarType.literal(datatype);
@@ -757,22 +817,33 @@ final class Lexer {
   private ExampleValue readExampleValue() {
     skipInline();
     char ch = peek();
+    int start = pos;
     if (ch == '<') {
       String iri = readDatatypeRef();
-      return new Ast.IriVal(iri.substring(1, iri.length() - 1));
+      String value = iri.substring(1, iri.length() - 1);
+      symbols.add(new Ast.IriSym(value, start, pos));
+      return new Ast.IriVal(value);
     }
     if (ch == '"') {
       String value = readQuotedString();
+      int litEnd = pos;
       if (peek() == '@') {
         advance(1);
         StringBuilder lang = new StringBuilder();
         while (isLangChar(peek())) lang.append(advance(1));
+        symbols.add(new Ast.LiteralSym(value, null, start, litEnd));
         return new Ast.StringVal(value, lang.toString(), null);
       }
       if (peek() == '^' && peek(1) == '^') {
         advance(2);
-        return new Ast.StringVal(value, null, readDatatypeRef());
+        int dtStart = pos;
+        String datatype = readDatatypeRef();
+        // Push the literal (earlier offset) before its datatype ref to keep symbols ascending.
+        symbols.add(new Ast.LiteralSym(value, datatype, start, litEnd));
+        emitDatatypeRef(dtStart, pos, datatype);
+        return new Ast.StringVal(value, null, datatype);
       }
+      symbols.add(new Ast.LiteralSym(value, null, start, litEnd));
       return new Ast.StringVal(value, null, null);
     }
     if (ch == '[') return readExampleList();
@@ -790,7 +861,9 @@ final class Lexer {
         advance(1);
         StringBuilder local = new StringBuilder();
         while (peek() != '\0' && isDatatypePnameChar(peek()) && peek() != ':') local.append(advance(1));
-        return new Ast.PnameVal(word, local.toString());
+        String localStr = local.toString();
+        symbols.add(new Ast.PnameSym(word, localStr, start, pos));
+        return new Ast.PnameVal(word, localStr);
       }
       throw error("invalid example value starting with '" + word + "'");
     }

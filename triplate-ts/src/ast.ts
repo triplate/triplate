@@ -122,8 +122,30 @@ export interface ExampleSet {
   column: number;
 }
 
+/**
+ * A positioned source symbol — a flat, non-opaque view over the frontmatter and
+ * body references that drive IDE features (tooltips, prefix rename, parameter
+ * rename). Offsets are absolute, 0-based and end-exclusive UTF-16 code-unit
+ * indices into the original source (the same units VS Code's `positionAt`/
+ * `offsetAt` use).
+ *
+ * `paramDecl` (frontmatter `params`), `paramRef` (every body `${…}`/`{% … %}`
+ * root reference) and `bindingKey` (frontmatter `example` keys) share a name
+ * space: grouping by `name` yields every rename site of a parameter.
+ * `pname`/`iri`/`literal` only ever occur in the frontmatter and feed the
+ * overlay (tooltips, prefix rename).
+ */
+export type TemplateSymbol =
+  | { kind: 'paramDecl'; name: string; start: number; end: number }
+  | { kind: 'paramRef'; name: string; start: number; end: number }
+  | { kind: 'bindingKey'; name: string; start: number; end: number }
+  | { kind: 'pname'; prefix: string; local: string; start: number; end: number }
+  | { kind: 'iri'; value: string; start: number; end: number }
+  | { kind: 'literal'; value: string; datatype?: string; start: number; end: number };
+
 export interface CompiledTemplateData {
   schema: Schema;
   examples: ExampleSet[];
   body: Node[];
+  symbols: TemplateSymbol[];
 }

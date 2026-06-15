@@ -26,7 +26,8 @@ final class Parser {
   private Parser() {}
 
   static CompiledTemplateData parse(String template) {
-    List<Token> tokens = Lexer.tokenize(template);
+    Lexer.LexResult lexed = Lexer.lex(template);
+    List<Token> tokens = lexed.tokens();
 
     Schema schema = null;
     List<ExampleSet> examples = new ArrayList<>();
@@ -65,7 +66,7 @@ final class Parser {
 
     List<Node> tree = buildTree(body);
     validateScopes(tree, new HashSet<>(schema.byName().keySet()));
-    return new CompiledTemplateData(schema, examples, tree);
+    return new CompiledTemplateData(schema, examples, tree, lexed.symbols());
   }
 
   private static final class Frame {

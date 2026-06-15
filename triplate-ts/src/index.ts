@@ -1,8 +1,16 @@
 import { parse } from './parser.js';
 import { render as renderData, validateContext } from './renderer.js';
 import { exampleSetToContext, extractPrefixes } from './examples.js';
+import { extractSymbols } from './lexer.js';
 import { TriplateTypeError } from './errors.js';
-import type { CompiledTemplateData, ExampleSet, ExampleValue, Schema, TypeExpr } from './ast.js';
+import type {
+  CompiledTemplateData,
+  ExampleSet,
+  ExampleValue,
+  Schema,
+  TemplateSymbol,
+  TypeExpr,
+} from './ast.js';
 
 export {
   TriplateError,
@@ -12,7 +20,7 @@ export {
   TriplateCardinalityError,
 } from './errors.js';
 export { registerType, type CustomSerializer } from './types/index.js';
-export type { Schema, ParamDecl, TypeExpr, ExampleSet } from './ast.js';
+export type { Schema, ParamDecl, TypeExpr, ExampleSet, TemplateSymbol } from './ast.js';
 
 /** An RDF/JS-style term, accepted by the `term` type. */
 export interface Term {
@@ -49,6 +57,24 @@ export class CompiledTemplate {
   /** The named example sets (from example blocks in the frontmatter). */
   get examples(): ExampleSet[] {
     return this.data.examples;
+  }
+
+  /**
+   * A flat, positioned view of the named symbols in the source — parameter
+   * declarations and the body references that use them, example binding keys,
+   * and the prefixed-name / IRI / literal values in the frontmatter.
+   *
+   * Offsets are absolute, 0-based, end-exclusive UTF-16 indices into the
+   * original source (see {@link TemplateSymbol}). This makes the otherwise
+   * opaque frontmatter non-opaque to token-driven IDE features: tooltips on
+   * `pname`/`iri` values, prefix rename across frontmatter usages, and
+   * parameter rename (group `paramDecl` + `paramRef` + `bindingKey` by name).
+   *
+   * For symbols on a possibly-malformed template (e.g. during live editing),
+   * use the top-level {@link symbols} function, which never throws.
+   */
+  symbols(): TemplateSymbol[] {
+    return this.data.symbols;
   }
 
   /** Render with a caller-supplied context. */
@@ -180,6 +206,17 @@ export function isTemplate(text: string): boolean {
 /** Parses a template once; the result can be rendered many times. */
 export function compile(template: string): CompiledTemplate {
   return new CompiledTemplate(parse(template), template);
+}
+
+/**
+ * Extracts positioned source symbols without compiling, tolerating malformed
+ * input: returns the symbols collected up to the first syntax error rather than
+ * throwing. Intended for IDE features (tooltips, prefix/parameter rename) over
+ * templates that may not yet parse. See {@link CompiledTemplate.symbols} for the
+ * strict, post-compile equivalent and {@link TemplateSymbol} for the shape.
+ */
+export function symbols(source: string): TemplateSymbol[] {
+  return extractSymbols(source);
 }
 
 /** One-shot convenience: compile and render in a single call. */

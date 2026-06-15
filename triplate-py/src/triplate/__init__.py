@@ -14,8 +14,9 @@ rendered queries are injection-safe by construction. See https://triplate.dev.
 
 import re
 
-from ._ast import ExList, ExPname, ExRecord, ExString
+from ._ast import ExList, ExPname, ExRecord, ExString, TemplateSymbol
 from ._examples import example_set_to_context, extract_prefixes
+from ._lexer import extract_symbols as _extract_symbols
 from ._parser import parse as _parse
 from ._registry import register_type
 from ._renderer import _validate_context, render as _render
@@ -31,8 +32,10 @@ __all__ = [
     "CompiledTemplate",
     "compile",
     "render",
+    "symbols",
     "is_template",
     "register_type",
+    "TemplateSymbol",
     "TriplateError",
     "TriplateSyntaxError",
     "TriplateBindingError",
@@ -124,6 +127,24 @@ class CompiledTemplate:
     def examples(self):
         return self._data.examples
 
+    def symbols(self):
+        """A flat, positioned view of the named symbols in the source —
+        parameter declarations and the body references that use them, example
+        binding keys, and the prefixed-name / IRI / literal values in the
+        frontmatter.
+
+        Offsets are absolute, 0-based, end-exclusive code-point indices into the
+        original source (see :class:`TemplateSymbol`). This makes the otherwise
+        opaque frontmatter non-opaque to token-driven IDE features: tooltips on
+        ``pname``/``iri`` values, prefix rename across frontmatter usages, and
+        parameter rename (group ``paramDecl`` + ``paramRef`` + ``bindingKey`` by
+        name).
+
+        For symbols on a possibly-malformed template (e.g. during live editing),
+        use the module-level :func:`symbols` function, which never raises.
+        """
+        return self._data.symbols
+
     def render(self, context=None, **kwargs):
         ctx = dict(context) if context else {}
         ctx.update(kwargs)
@@ -193,3 +214,13 @@ def compile(template):
 def render(template, context=None, **kwargs):
     """One-shot convenience: compile and render in a single call."""
     return compile(template).render(context, **kwargs)
+
+
+def symbols(source):
+    """Extract positioned source symbols without compiling, tolerating malformed
+    input: returns the symbols collected up to the first syntax error rather than
+    raising. Intended for IDE features (tooltips, prefix/parameter rename) over
+    templates that may not yet parse. See :meth:`CompiledTemplate.symbols` for the
+    strict, post-compile equivalent and :class:`TemplateSymbol` for the shape.
+    """
+    return _extract_symbols(source)

@@ -13,12 +13,12 @@ from ._ast import (
     TextNode,
     ValueNode,
 )
-from ._lexer import tokenize
+from ._lexer import lex
 from .errors import TriplateSyntaxError
 
 
 def parse(template):
-    tokens = tokenize(template)
+    tokens, symbols = lex(template)
     schema = None
     examples = []
     body = []
@@ -46,7 +46,7 @@ def parse(template):
 
     tree = _build_tree(body)
     _validate_scopes(tree, set(schema.by_name.keys()))
-    return CompiledTemplateData(schema, examples, tree)
+    return CompiledTemplateData(schema, examples, tree, symbols)
 
 
 def _build_tree(tokens):

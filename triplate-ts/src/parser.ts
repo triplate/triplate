@@ -10,10 +10,10 @@ import type {
   Schema,
   TypeExpr,
 } from './ast.js';
-import { tokenize, type Token } from './lexer.js';
+import { lex, type Token } from './lexer.js';
 
 export function parse(template: string): CompiledTemplateData {
-  const tokens = tokenize(template);
+  const { tokens, symbols } = lex(template);
 
   let schema: Schema | undefined;
   const examples: ExampleSet[] = [];
@@ -42,7 +42,7 @@ export function parse(template: string): CompiledTemplateData {
 
   const tree = buildTree(body);
   validateScopes(tree, new Set(Object.keys(schema.byName)));
-  return { schema, examples, body: tree };
+  return { schema, examples, body: tree, symbols };
 }
 
 type Frame =

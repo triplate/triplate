@@ -8,6 +8,7 @@ import dev.triplate.Ast.RecordType;
 import dev.triplate.Ast.ScalarKind;
 import dev.triplate.Ast.ScalarType;
 import dev.triplate.Ast.Schema;
+import dev.triplate.Ast.TemplateSymbol;
 import dev.triplate.Ast.TypeExpr;
 
 import java.math.BigInteger;
@@ -39,6 +40,25 @@ public final class CompiledTemplate {
   /** The named example sets (from {@code example} blocks in the frontmatter). */
   public List<ExampleSet> examples() {
     return data.examples();
+  }
+
+  /**
+   * A flat, positioned view of the named symbols in the source — parameter
+   * declarations and the body references that use them, example binding keys,
+   * and the prefixed-name / IRI / literal values in the frontmatter.
+   *
+   * <p>Offsets are absolute, 0-based, end-exclusive UTF-16 indices into the
+   * original source (see {@link TemplateSymbol}). This makes the otherwise opaque
+   * frontmatter non-opaque to token-driven IDE features: tooltips on
+   * {@code pname}/{@code iri} values, prefix rename across frontmatter usages,
+   * and parameter rename (group {@code paramDecl} + {@code paramRef} +
+   * {@code bindingKey} by name).
+   *
+   * <p>For symbols on a possibly-malformed template (e.g. during live editing),
+   * use {@link Triplate#symbols(String)}, which never throws.
+   */
+  public List<TemplateSymbol> symbols() {
+    return data.symbols();
   }
 
   /** Render with no context (valid only when every parameter is optional). */

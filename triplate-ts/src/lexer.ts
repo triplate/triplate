@@ -7,6 +7,7 @@ import type {
   Part,
   RefPath,
   ScalarType,
+  TemplateSymbol,
   TypeBase,
   TypeExpr,
 } from './ast.js';
@@ -53,12 +54,37 @@ export function tokenize(source: string): Token[] {
   return new Lexer(source).run();
 }
 
+/** Tokenize and collect positioned source symbols in a single pass. */
+export function lex(source: string): { tokens: Token[]; symbols: TemplateSymbol[] } {
+  const lexer = new Lexer(source);
+  const tokens = lexer.run();
+  return { tokens, symbols: lexer.symbols };
+}
+
+/**
+ * Lenient symbol extraction for IDE features over possibly-malformed templates:
+ * returns the positioned symbols collected up to the first syntax error (i.e.
+ * "what parsed") instead of throwing.
+ */
+export function extractSymbols(source: string): TemplateSymbol[] {
+  const lexer = new Lexer(source);
+  try {
+    lexer.run();
+  } catch {
+    // Swallow the syntax error and return what was collected before it.
+  }
+  return lexer.symbols;
+}
+
 class Lexer {
   private readonly s: string;
   private pos = 0;
   private line = 1;
   private col = 1;
   private tokens: Token[] = [];
+  /** Positioned source symbols, accumulated in source order. `this.pos` is an
+   *  absolute, 0-based UTF-16 offset, so it doubles as the symbol offset. */
+  readonly symbols: TemplateSymbol[] = [];
   private buf = '';
   private lineHasContent = false;
   private stringDelim: string | null = null;
@@ -214,6 +240,23 @@ class Lexer {
     return tok;
   }
 
+  // ---- positioned symbols ------------------------------------------------
+
+  /** Emit a body reference symbol for the root segment of a `${…}`/`{% … %}` path. */
+  private emitRef(rootStart: number, path: RefPath): void {
+    this.symbols.push({ kind: 'paramRef', name: path[0], start: rootStart, end: rootStart + path[0].length });
+  }
+
+  /** Emit a datatype reference (`<iri>` or `prefix:local`) as an iri/pname symbol. */
+  private emitDatatypeRef(start: number, end: number, dt: string): void {
+    if (dt.startsWith('<')) {
+      this.symbols.push({ kind: 'iri', value: dt.slice(1, -1), start, end });
+    } else {
+      const i = dt.indexOf(':');
+      this.symbols.push({ kind: 'pname', prefix: dt.slice(0, i), local: dt.slice(i + 1), start, end });
+    }
+  }
+
   // ---- value constructs --------------------------------------------------
 
   private lexValue(): void {
@@ -228,7 +271,9 @@ class Lexer {
       spread = true;
       this.skipInline();
     }
+    const rootStart = this.pos;
     const path = this.readPath();
+    this.emitRef(rootStart, path);
     let join: string | undefined;
     let joinExact = false;
     if (spread) {
@@ -245,7 +290,9 @@ class Lexer {
     const col = this.col;
     this.advance(2); // ${
     this.skipInline();
+    const rootStart = this.pos;
     const path = this.readPath();
+    this.emitRef(rootStart, path);
     this.skipInline();
     if (this.peek() !== '}') this.error('unterminated ${ … } hole', line, col);
     this.advance(1);
@@ -425,7 +472,9 @@ class Lexer {
     this.skipInline();
     if (this.readIdent().toLowerCase() !== 'in') this.error("expected 'in' in %for");
     this.skipInline();
+    const rootStart = this.pos;
     const source = this.readPath();
+    this.emitRef(rootStart, source);
     const { join, joinExact } = this.readJoinClause(() => this.atTagEnd(), '%for');
     this.skipInline();
     if (!this.atTagEnd()) this.error('unexpected content in %for directive');
@@ -450,7 +499,9 @@ class Lexer {
         this.col = before.col;
       }
     }
+    const rootStart = this.pos;
     const path = this.readPath();
+    this.emitRef(rootStart, path);
     return { negated, path, line, column: col };
   }
 
@@ -523,7 +574,9 @@ class Lexer {
         break;
       }
       if (this.peek() === '') this.error('unterminated params { … }', line, col);
+      const nameStart = this.pos;
       const name = this.readIdent();
+      this.symbols.push({ kind: 'paramDecl', name, start: nameStart, end: this.pos });
       this.skipInline();
       if (this.peek() !== ':') this.error(`expected ':' after parameter '${name}'`);
       this.advance(1);
@@ -550,7 +603,9 @@ class Lexer {
         break;
       }
       if (this.peek() === '') this.error('unterminated example { … }', line, col);
+      const nameStart = this.pos;
       const name = this.readIdent();
+      this.symbols.push({ kind: 'bindingKey', name, start: nameStart, end: this.pos });
       this.skipInline();
       if (this.peek() !== ':') this.error(`expected ':' after '${name}' in example`);
       this.advance(1);
@@ -601,7 +656,9 @@ class Lexer {
     if (low === 'literal') {
       if (this.peek() !== '(') this.error("expected '(' after literal");
       this.advance(1);
+      const dtStart = this.pos;
       const datatype = this.readDatatypeRef();
+      this.emitDatatypeRef(dtStart, this.pos, datatype);
       if (this.peek() !== ')') this.error("expected ')' after literal datatype");
       this.advance(1);
       return { kind: 'literal', datatype };
@@ -638,19 +695,32 @@ class Lexer {
   private readExampleValue(): ExampleValue {
     this.skipInline();
     const ch = this.peek();
-    if (ch === '<') return { kind: 'iri', value: this.readDatatypeRef().slice(1, -1) };
+    const start = this.pos;
+    if (ch === '<') {
+      const value = this.readDatatypeRef().slice(1, -1);
+      this.symbols.push({ kind: 'iri', value, start, end: this.pos });
+      return { kind: 'iri', value };
+    }
     if (ch === '"') {
       const value = this.readQuotedString();
+      const litEnd = this.pos;
       if (this.peek() === '@') {
         this.advance(1);
         let lang = '';
         while (isLangChar(this.peek())) lang += this.advance(1);
+        this.symbols.push({ kind: 'literal', value, start, end: litEnd });
         return { kind: 'string', value, lang };
       }
       if (this.peek() === '^' && this.peek(1) === '^') {
         this.advance(2);
-        return { kind: 'string', value, datatype: this.readDatatypeRef() };
+        const dtStart = this.pos;
+        const datatype = this.readDatatypeRef();
+        // Push the literal (earlier offset) before its datatype ref to keep symbols ascending.
+        this.symbols.push({ kind: 'literal', value, datatype, start, end: litEnd });
+        this.emitDatatypeRef(dtStart, this.pos, datatype);
+        return { kind: 'string', value, datatype };
       }
+      this.symbols.push({ kind: 'literal', value, start, end: litEnd });
       return { kind: 'string', value };
     }
     if (ch === '[') return this.readExampleList();
@@ -667,6 +737,7 @@ class Lexer {
         this.advance(1);
         let local = '';
         while (this.peek() !== '' && /[A-Za-z0-9_.-]/.test(this.peek())) local += this.advance(1);
+        this.symbols.push({ kind: 'pname', prefix: word, local, start, end: this.pos });
         return { kind: 'pname', prefix: word, local };
       }
       this.error(`invalid example value starting with '${word}'`);

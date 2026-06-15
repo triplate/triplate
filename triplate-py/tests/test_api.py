@@ -9,6 +9,7 @@ from triplate import (
     compile,
     register_type,
     render,
+    symbols,
 )
 
 
@@ -127,6 +128,65 @@ def test_missing_required_is_render_error():
 def test_no_frontmatter_is_rejected():
     with pytest.raises(TriplateSyntaxError):
         compile("SELECT * WHERE { ?s ?p ?o }")
+
+
+_SYM_SRC = (
+    "---\n"
+    "params {\n  who: pname\n  amount: literal(xsd:decimal)\n}\n"
+    'example demo "D" {\n  who: schema:Person\n  amount: "9.99"^^xsd:decimal\n  home: <http://ex.org/me>\n}\n'
+    "---\n"
+    "?s a ${who} . {% if amount %}${amount}{% endif %}"
+)
+
+
+def test_symbol_spans_slice_their_own_text():
+    for s in compile(_SYM_SRC).symbols():
+        slice_ = _SYM_SRC[s.start : s.end]
+        if s.kind == "pname":
+            expected = f"{s.prefix}:{s.local}"
+        elif s.kind == "iri":
+            expected = f"<{s.value}>"
+        elif s.kind == "literal":
+            expected = f'"{s.value}"'
+        else:
+            expected = s.name
+        assert slice_ == expected
+
+
+def test_symbols_capture_every_kind():
+    syms = compile(_SYM_SRC).symbols()
+    by_kind = lambda k: [s for s in syms if s.kind == k]  # noqa: E731
+    assert [s.name for s in by_kind("paramDecl")] == ["who", "amount"]
+    # Two `amount` refs: the {% if amount %} condition and the ${amount} hole.
+    assert [s.name for s in by_kind("paramRef")] == ["who", "amount", "amount"]
+    assert [s.name for s in by_kind("bindingKey")] == ["who", "amount", "home"]
+    # pname: the literal(xsd:decimal) type, the schema:Person value, the ^^xsd:decimal datatype.
+    assert len(by_kind("pname")) == 3
+    assert [s.value for s in by_kind("iri")] == ["http://ex.org/me"]
+    lits = by_kind("literal")
+    assert len(lits) == 1
+    assert (lits[0].value, lits[0].datatype) == ("9.99", "xsd:decimal")
+
+
+def test_symbols_are_in_ascending_source_order():
+    offsets = [s.start for s in compile(_SYM_SRC).symbols()]
+    assert offsets == sorted(offsets)
+
+
+def test_symbol_rename_sites_group_by_name():
+    sites = [
+        s
+        for s in compile(_SYM_SRC).symbols()
+        if s.kind in ("paramDecl", "paramRef", "bindingKey") and s.name == "amount"
+    ]
+    assert [s.kind for s in sites] == ["paramDecl", "bindingKey", "paramRef", "paramRef"]
+
+
+def test_module_symbols_is_lenient_on_malformed_template():
+    bad = '---\nparams { a: int }\nexample x {\n  who: schema:Person\n'
+    with pytest.raises(TriplateSyntaxError):
+        compile(bad)
+    assert [s.kind for s in symbols(bad)] == ["paramDecl", "bindingKey", "pname"]
 
 
 def test_double_specials():

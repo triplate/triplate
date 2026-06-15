@@ -3,6 +3,7 @@ import {
   compile,
   registerType,
   render,
+  symbols,
   TriplateBindingError,
   TriplateSyntaxError,
   TriplateTypeError,
@@ -113,5 +114,60 @@ describe('API behaviour', () => {
 
   it('a template without frontmatter is rejected', () => {
     expect(() => compile('SELECT * WHERE { ?s ?p ?o }')).toThrow(TriplateSyntaxError);
+  });
+
+  describe('positioned symbols', () => {
+    const SRC =
+      '---\n' +
+      'params {\n  who: pname\n  amount: literal(xsd:decimal)\n}\n' +
+      'example demo "D" {\n  who: schema:Person\n  amount: "9.99"^^xsd:decimal\n  home: <http://ex.org/me>\n}\n' +
+      '---\n' +
+      '?s a ${who} . {% if amount %}${amount}{% endif %}';
+
+    it('every symbol span slices its own text from the source', () => {
+      for (const s of compile(SRC).symbols()) {
+        const slice = SRC.slice(s.start, s.end);
+        const expected =
+          s.kind === 'pname'
+            ? `${s.prefix}:${s.local}`
+            : s.kind === 'iri'
+              ? `<${s.value}>`
+              : s.kind === 'literal'
+                ? JSON.stringify(s.value)
+                : s.name;
+        expect(slice).toBe(expected);
+      }
+    });
+
+    it('captures decls, refs, binding keys, pnames, iris and literals', () => {
+      const byKind = (k: string) => compile(SRC).symbols().filter((s) => s.kind === k);
+      expect(byKind('paramDecl').map((s) => (s as { name: string }).name)).toEqual(['who', 'amount']);
+      // Two `amount` refs: the {% if amount %} condition and the ${amount} hole.
+      expect(byKind('paramRef').map((s) => (s as { name: string }).name)).toEqual(['who', 'amount', 'amount']);
+      expect(byKind('bindingKey').map((s) => (s as { name: string }).name)).toEqual(['who', 'amount', 'home']);
+      // pname: the literal(xsd:decimal) type, the schema:Person value, and the ^^xsd:decimal datatype.
+      expect(byKind('pname')).toHaveLength(3);
+      expect(byKind('iri').map((s) => (s as { value: string }).value)).toEqual(['http://ex.org/me']);
+      const lits = byKind('literal') as Array<{ value: string; datatype?: string }>;
+      expect(lits).toEqual([{ kind: 'literal', value: '9.99', datatype: 'xsd:decimal', start: expect.any(Number), end: expect.any(Number) }]);
+    });
+
+    it('symbols are emitted in ascending source order', () => {
+      const offsets = compile(SRC).symbols().map((s) => s.start);
+      expect(offsets).toEqual([...offsets].sort((a, b) => a - b));
+    });
+
+    it('grouping paramDecl + paramRef + bindingKey by name yields every rename site', () => {
+      const sites = compile(SRC)
+        .symbols()
+        .filter((s) => (s.kind === 'paramDecl' || s.kind === 'paramRef' || s.kind === 'bindingKey') && (s as { name: string }).name === 'amount');
+      expect(sites.map((s) => s.kind)).toEqual(['paramDecl', 'bindingKey', 'paramRef', 'paramRef']);
+    });
+
+    it('the standalone symbols() is lenient — returns what parsed on a malformed template', () => {
+      const bad = '---\nparams { a: int }\nexample x {\n  who: schema:Person\n';
+      expect(() => compile(bad)).toThrow(TriplateSyntaxError);
+      expect(symbols(bad).map((s) => s.kind)).toEqual(['paramDecl', 'bindingKey', 'pname']);
+    });
   });
 });

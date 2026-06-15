@@ -179,8 +179,39 @@ class ExampleSet:
     column: int = 0
 
 
+@dataclass(frozen=True)
+class TemplateSymbol:
+    """A positioned source symbol — a flat, non-opaque view over the frontmatter
+    and body references that drive IDE features (tooltips, prefix rename,
+    parameter rename).
+
+    ``kind`` is one of ``paramDecl``/``paramRef``/``bindingKey``/``pname``/
+    ``iri``/``literal``; only the fields relevant to that kind are populated
+    (``name`` for the first three; ``prefix``/``local`` for ``pname``; ``value``
+    for ``iri``/``literal``; ``datatype`` optionally for ``literal``). ``start``
+    and ``end`` are absolute, 0-based, end-exclusive code-point offsets into the
+    original source.
+
+    ``paramDecl`` (frontmatter ``params``), ``paramRef`` (every body
+    ``${…}``/``{% … %}`` root reference) and ``bindingKey`` (frontmatter
+    ``example`` keys) share a name space: grouping by ``name`` yields every
+    rename site of a parameter. ``pname``/``iri``/``literal`` only ever occur in
+    the frontmatter and feed the overlay (tooltips, prefix rename).
+    """
+
+    kind: str
+    start: int
+    end: int
+    name: Optional[str] = None
+    prefix: Optional[str] = None
+    local: Optional[str] = None
+    value: Optional[str] = None
+    datatype: Optional[str] = None
+
+
 @dataclass
 class CompiledTemplateData:
     schema: Schema
     examples: List[ExampleSet]
     body: List[Node]
+    symbols: List[TemplateSymbol] = field(default_factory=list)

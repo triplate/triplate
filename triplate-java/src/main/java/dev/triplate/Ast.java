@@ -143,5 +143,38 @@ public final class Ast {
   public record ExampleSet(
       String id, String description, Map<String, ExampleValue> bindings, int line, int column) {}
 
-  public record CompiledTemplateData(Schema schema, List<ExampleSet> examples, List<Node> body) {}
+  /**
+   * A positioned source symbol — a flat, non-opaque view over the frontmatter
+   * and body references that drive IDE features (tooltips, prefix rename,
+   * parameter rename). Offsets are absolute, 0-based and end-exclusive UTF-16
+   * code-unit indices into the original source.
+   *
+   * <p>{@link ParamDeclSym} (frontmatter {@code params}), {@link ParamRefSym}
+   * (every body {@code ${…}}/{@code {% … %}} root reference) and
+   * {@link BindingKeySym} (frontmatter {@code example} keys) share a name space:
+   * grouping by {@code name} yields every rename site of a parameter.
+   * {@link PnameSym}/{@link IriSym}/{@link LiteralSym} only ever occur in the
+   * frontmatter and feed the overlay (tooltips, prefix rename).
+   */
+  public sealed interface TemplateSymbol
+      permits ParamDeclSym, ParamRefSym, BindingKeySym, PnameSym, IriSym, LiteralSym {
+    int start();
+
+    int end();
+  }
+
+  public record ParamDeclSym(String name, int start, int end) implements TemplateSymbol {}
+
+  public record ParamRefSym(String name, int start, int end) implements TemplateSymbol {}
+
+  public record BindingKeySym(String name, int start, int end) implements TemplateSymbol {}
+
+  public record PnameSym(String prefix, String local, int start, int end) implements TemplateSymbol {}
+
+  public record IriSym(String value, int start, int end) implements TemplateSymbol {}
+
+  public record LiteralSym(String value, String datatype, int start, int end) implements TemplateSymbol {}
+
+  public record CompiledTemplateData(
+      Schema schema, List<ExampleSet> examples, List<Node> body, List<TemplateSymbol> symbols) {}
 }

@@ -1,7 +1,15 @@
 package dev.triplate;
 
+import dev.triplate.Ast.BindingKeySym;
+import dev.triplate.Ast.IriSym;
+import dev.triplate.Ast.LiteralSym;
+import dev.triplate.Ast.ParamDeclSym;
+import dev.triplate.Ast.ParamRefSym;
+import dev.triplate.Ast.PnameSym;
+import dev.triplate.Ast.TemplateSymbol;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -118,5 +126,78 @@ class ApiTest {
     assertEquals("FILTER(?x > 1.5E6)",
         Triplate.render(h("d: double", "FILTER(?x > ${d})"), Map.of("d", 1500000)));
     assertTrue(Triplate.render(h("d: double", "${d}"), Map.of("d", 0)).equals("0.0E0"));
+  }
+
+  private static final String SYM_SRC =
+      "---\n"
+          + "params {\n  who: pname\n  amount: literal(xsd:decimal)\n}\n"
+          + "example demo \"D\" {\n  who: schema:Person\n  amount: \"9.99\"^^xsd:decimal\n  home: <http://ex.org/me>\n}\n"
+          + "---\n"
+          + "?s a ${who} . {% if amount %}${amount}{% endif %}";
+
+  private static List<String> names(List<TemplateSymbol> syms, Class<? extends TemplateSymbol> kind) {
+    List<String> out = new ArrayList<>();
+    for (TemplateSymbol s : syms) {
+      if (kind.isInstance(s)) {
+        if (s instanceof ParamDeclSym d) out.add(d.name());
+        else if (s instanceof ParamRefSym r) out.add(r.name());
+        else if (s instanceof BindingKeySym b) out.add(b.name());
+      }
+    }
+    return out;
+  }
+
+  @Test
+  void symbolSpansSliceTheirOwnText() {
+    for (TemplateSymbol s : Triplate.compile(SYM_SRC).symbols()) {
+      String slice = SYM_SRC.substring(s.start(), s.end());
+      String expected;
+      if (s instanceof PnameSym p) expected = p.prefix() + ":" + p.local();
+      else if (s instanceof IriSym i) expected = "<" + i.value() + ">";
+      else if (s instanceof LiteralSym l) expected = "\"" + l.value() + "\"";
+      else if (s instanceof ParamDeclSym d) expected = d.name();
+      else if (s instanceof ParamRefSym r) expected = r.name();
+      else if (s instanceof BindingKeySym b) expected = b.name();
+      else throw new AssertionError("unexpected symbol: " + s);
+      assertEquals(expected, slice);
+    }
+  }
+
+  @Test
+  void symbolsCaptureEveryKind() {
+    List<TemplateSymbol> syms = Triplate.compile(SYM_SRC).symbols();
+    assertEquals(List.of("who", "amount"), names(syms, ParamDeclSym.class));
+    // Two `amount` refs: the {% if amount %} condition and the ${amount} hole.
+    assertEquals(List.of("who", "amount", "amount"), names(syms, ParamRefSym.class));
+    assertEquals(List.of("who", "amount", "home"), names(syms, BindingKeySym.class));
+    // pname: the literal(xsd:decimal) type, the schema:Person value, the ^^xsd:decimal datatype.
+    assertEquals(3, syms.stream().filter(s -> s instanceof PnameSym).count());
+    List<TemplateSymbol> iris = syms.stream().filter(s -> s instanceof IriSym).toList();
+    assertEquals(1, iris.size());
+    assertEquals("http://ex.org/me", ((IriSym) iris.get(0)).value());
+    List<TemplateSymbol> lits = syms.stream().filter(s -> s instanceof LiteralSym).toList();
+    assertEquals(1, lits.size());
+    assertEquals("9.99", ((LiteralSym) lits.get(0)).value());
+    assertEquals("xsd:decimal", ((LiteralSym) lits.get(0)).datatype());
+  }
+
+  @Test
+  void symbolsAreInAscendingSourceOrder() {
+    int prev = -1;
+    for (TemplateSymbol s : Triplate.compile(SYM_SRC).symbols()) {
+      assertTrue(s.start() >= prev, "symbols must be in ascending source order");
+      prev = s.start();
+    }
+  }
+
+  @Test
+  void moduleSymbolsIsLenientOnMalformedTemplate() {
+    String bad = "---\nparams { a: int }\nexample x {\n  who: schema:Person\n";
+    assertThrows(TriplateSyntaxError.class, () -> Triplate.compile(bad));
+    List<TemplateSymbol> syms = Triplate.symbols(bad);
+    assertEquals(3, syms.size());
+    assertTrue(syms.get(0) instanceof ParamDeclSym);
+    assertTrue(syms.get(1) instanceof BindingKeySym);
+    assertTrue(syms.get(2) instanceof PnameSym);
   }
 }

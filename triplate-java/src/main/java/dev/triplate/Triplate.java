@@ -1,5 +1,8 @@
 package dev.triplate;
 
+import dev.triplate.Ast.TemplateSymbol;
+
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,6 +54,17 @@ public final class Triplate {
   /** One-shot render with no context (valid only when every parameter is optional). */
   public static String render(String template) {
     return render(template, Map.of());
+  }
+
+  /**
+   * Extracts positioned source symbols without compiling, tolerating malformed
+   * input: returns the symbols collected up to the first syntax error rather than
+   * throwing. Intended for IDE features (tooltips, prefix/parameter rename) over
+   * templates that may not yet parse. See {@link CompiledTemplate#symbols()} for
+   * the strict, post-compile equivalent and {@link TemplateSymbol} for the shape.
+   */
+  public static List<TemplateSymbol> symbols(String source) {
+    return Lexer.extractSymbols(source);
   }
 
   private static final java.util.regex.Pattern HEADER =

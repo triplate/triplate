@@ -16,6 +16,7 @@ from ._ast import (
     ParamDecl,
     PartHole,
     PartText,
+    TemplateSymbol,
     TypeExpr,
 )
 from ._registry import has_custom_type
@@ -49,6 +50,26 @@ def tokenize(source):
     return _Lexer(source).run()
 
 
+def lex(source):
+    """Tokenize and collect positioned source symbols in a single pass."""
+    lexer = _Lexer(source)
+    tokens = lexer.run()
+    return tokens, lexer.symbols
+
+
+def extract_symbols(source):
+    """Lenient symbol extraction for IDE features over possibly-malformed
+    templates: returns the positioned symbols collected up to the first syntax
+    error (i.e. "what parsed") instead of raising.
+    """
+    lexer = _Lexer(source)
+    try:
+        lexer.run()
+    except TriplateSyntaxError:
+        pass  # Return what was collected before the failure.
+    return lexer.symbols
+
+
 class _Lexer:
     def __init__(self, source):
         self.s = source
@@ -56,6 +77,9 @@ class _Lexer:
         self.line = 1
         self.col = 1
         self.tokens = []
+        # Positioned source symbols, accumulated in source order. self.pos is an
+        # absolute, 0-based code-point offset, so it doubles as the symbol offset.
+        self.symbols = []
         self.buf = []
         self.line_has_content = False
         self.string_delim = None
@@ -227,6 +251,22 @@ class _Lexer:
             self._error(f"invalid prefixed name: {text}")
         return text
 
+    # ---- positioned symbols ------------------------------------------------
+
+    def _emit_ref(self, root_start, path):
+        """Emit a body reference symbol for the root segment of a ${…}/{% … %} path."""
+        self.symbols.append(
+            TemplateSymbol("paramRef", root_start, root_start + len(path[0]), name=path[0])
+        )
+
+    def _emit_datatype_ref(self, start, end, dt):
+        """Emit a datatype reference (`<iri>` or `prefix:local`) as an iri/pname symbol."""
+        if dt.startswith("<"):
+            self.symbols.append(TemplateSymbol("iri", start, end, value=dt[1:-1]))
+        else:
+            i = dt.find(":")
+            self.symbols.append(TemplateSymbol("pname", start, end, prefix=dt[:i], local=dt[i + 1 :]))
+
     # ---- value constructs --------------------------------------------------
 
     def _lex_value(self):
@@ -239,7 +279,9 @@ class _Lexer:
             self._advance(3)
             spread = True
             self._skip_inline()
+        root_start = self.pos
         path = self._read_path()
+        self._emit_ref(root_start, path)
         join = None
         join_exact = False
         if spread:
@@ -256,7 +298,9 @@ class _Lexer:
         line, col = self.line, self.col
         self._advance(2)  # ${
         self._skip_inline()
+        root_start = self.pos
         path = self._read_path()
+        self._emit_ref(root_start, path)
         self._skip_inline()
         if self._peek() != "}":
             self._error("unterminated ${ … } hole", line, col)
@@ -426,7 +470,9 @@ class _Lexer:
         if self._read_ident().lower() != "in":
             self._error("expected 'in' in %for")
         self._skip_inline()
+        root_start = self.pos
         source = self._read_path()
+        self._emit_ref(root_start, source)
         join, join_exact = self._read_join_clause(self._at_tag_end, "%for")
         self._skip_inline()
         if not self._at_tag_end():
@@ -446,7 +492,9 @@ class _Lexer:
                 self._skip_inline()
             else:
                 self.pos, self.line, self.col = before
+        root_start = self.pos
         path = self._read_path()
+        self._emit_ref(root_start, path)
         return Cond(negated, path, line, col)
 
     # ---- --- frontmatter header --------------------------------------------
@@ -515,7 +563,9 @@ class _Lexer:
                 break
             if self._peek() == "":
                 self._error("unterminated params { … }", line, col)
+            name_start = self.pos
             name = self._read_ident()
+            self.symbols.append(TemplateSymbol("paramDecl", name_start, self.pos, name=name))
             self._skip_inline()
             if self._peek() != ":":
                 self._error(f"expected ':' after parameter '{name}'")
@@ -544,7 +594,9 @@ class _Lexer:
                 break
             if self._peek() == "":
                 self._error("unterminated example { … }", line, col)
+            name_start = self.pos
             name = self._read_ident()
+            self.symbols.append(TemplateSymbol("bindingKey", name_start, self.pos, name=name))
             self._skip_inline()
             if self._peek() != ":":
                 self._error(f"expected ':' after '{name}' in example")
@@ -595,7 +647,9 @@ class _Lexer:
             if self._peek() != "(":
                 self._error("expected '(' after literal")
             self._advance(1)
+            dt_start = self.pos
             datatype = self._read_datatype_ref()
+            self._emit_datatype_ref(dt_start, self.pos, datatype)
             if self._peek() != ")":
                 self._error("expected ')' after literal datatype")
             self._advance(1)
@@ -630,19 +684,30 @@ class _Lexer:
     def _read_example_value(self):
         self._skip_inline()
         ch = self._peek()
+        start = self.pos
         if ch == "<":
-            return ExIri(self._read_datatype_ref()[1:-1])
+            value = self._read_datatype_ref()[1:-1]
+            self.symbols.append(TemplateSymbol("iri", start, self.pos, value=value))
+            return ExIri(value)
         if ch == '"':
             value = self._read_quoted_string()
+            lit_end = self.pos
             if self._peek() == "@":
                 self._advance(1)
                 lang = []
                 while _is(_LANG_CHAR, self._peek()):
                     lang.append(self._advance(1))
+                self.symbols.append(TemplateSymbol("literal", start, lit_end, value=value))
                 return ExString(value, lang="".join(lang))
             if self._peek() == "^" and self._peek(1) == "^":
                 self._advance(2)
-                return ExString(value, datatype=self._read_datatype_ref())
+                dt_start = self.pos
+                datatype = self._read_datatype_ref()
+                # Push the literal (earlier offset) before its datatype ref to keep symbols ascending.
+                self.symbols.append(TemplateSymbol("literal", start, lit_end, value=value, datatype=datatype))
+                self._emit_datatype_ref(dt_start, self.pos, datatype)
+                return ExString(value, datatype=datatype)
+            self.symbols.append(TemplateSymbol("literal", start, lit_end, value=value))
             return ExString(value)
         if ch == "[":
             return self._read_example_list()
@@ -662,7 +727,9 @@ class _Lexer:
                 local = []
                 while self._peek() != "" and _PN_LOCAL.match(self._peek()):
                     local.append(self._advance(1))
-                return ExPname(word, "".join(local))
+                local_str = "".join(local)
+                self.symbols.append(TemplateSymbol("pname", start, self.pos, prefix=word, local=local_str))
+                return ExPname(word, local_str)
             self._error(f"invalid example value starting with '{word}'")
         self._error("expected an example value")
 
