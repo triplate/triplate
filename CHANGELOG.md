@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/triplate/triplate/compare/v0.4.0...v0.5.0) (2026-06-15)
+
+
+### Features
+
+* New symbol() API ([cb3e800](https://github.com/triplate/triplate/commit/cb3e80093bb0dc74d6771002b56e9256779da4ca))
+
 ## [0.4.0](https://github.com/triplate/triplate/compare/v0.3.0...v0.4.0) (2026-06-15)
 
 
