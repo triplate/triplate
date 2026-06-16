@@ -14,7 +14,13 @@ rendered queries are injection-safe by construction. See https://triplate.dev.
 
 import re
 
-from ._ast import ExList, ExPname, ExRecord, ExString, TemplateSymbol
+from ._ast import (
+    ExList,
+    ExPname,
+    ExRecord,
+    ExString,
+    TemplateSymbol,
+)
 from ._examples import example_set_to_context, extract_prefixes
 from ._lexer import extract_symbols as _extract_symbols
 from ._parser import parse as _parse
@@ -46,6 +52,7 @@ __all__ = [
 __version__ = "0.3.0"
 
 _HEADER_RE = re.compile(r"^---[ \t]*(\r?\n|$)")
+
 _INT_RE = re.compile(r"^[+-]?\d+$")
 
 
@@ -59,22 +66,31 @@ def _coerce_scalar(kind, raw):
     if kind == "int":
         if not _INT_RE.match(raw):
             raise TriplateTypeError(f"invalid int: {raw!r}")
-        return int(raw)
+        else:
+            return int(raw)
+    
     if kind in ("decimal", "double"):
         try:
             n = float(raw)
         except ValueError:
             raise TriplateTypeError(f"invalid {kind}: {raw!r}") from None
+        
         import math
+
         if not math.isfinite(n):
             raise TriplateTypeError(f"invalid {kind}: {raw!r}")
-        return n
+        else:
+            return n
+    
     if kind == "bool":
         if raw == "true":
             return True
+        
         if raw == "false":
             return False
+        
         raise TriplateTypeError(f'invalid bool: {raw!r} (expected "true" or "false")')
+    
     # iri, pname, string, literal, term, raw, date, dateTime, time, custom → string
     return raw
 
@@ -83,7 +99,9 @@ def _add_datatype_prefix(dt, out):
     """Add the prefix of a datatype reference (`prefix:local`); `<iri>` forms add nothing."""
     if dt.startswith("<"):
         return
+    
     i = dt.find(":")
+    
     if i >= 0:
         out.add(dt[:i])
 
@@ -105,6 +123,7 @@ def _collect_value_prefixes(ev, out):
 
 def _collect_type_prefixes(type_, out):
     base = type_.base
+
     if base["kind"] == "record":
         for ft in base["fields"].values():
             _collect_type_prefixes(ft, out)
@@ -148,6 +167,7 @@ class CompiledTemplate:
     def render(self, context=None, **kwargs):
         ctx = dict(context) if context else {}
         ctx.update(kwargs)
+
         return _render(self._data, ctx)
 
     def preview_example(self, example_id):
@@ -155,6 +175,7 @@ class CompiledTemplate:
             if e.id == example_id:
                 ctx = example_set_to_context(e, self._data.schema, extract_prefixes(self._source))
                 return _render(self._data, ctx)
+            
         raise TriplateError(f"no example set with id: {example_id}")
 
     def context_from_strings(self, inputs):
@@ -169,13 +190,18 @@ class CompiledTemplate:
         cardinality errors for structural problems.
         """
         context = {}
+
         for param in self._data.schema.params:
             base, array = param.type.base, param.type.array
+
             if base["kind"] == "record":
                 continue
+
             raw = inputs.get(param.name)
+
             if raw is None or raw.strip() == "":
                 continue
+
             if array:
                 context[param.name] = [
                     _coerce_scalar(base["kind"], item)
@@ -184,7 +210,9 @@ class CompiledTemplate:
                 ]
             else:
                 context[param.name] = _coerce_scalar(base["kind"], raw)
+
         _validate_context(self._data.schema, context)
+
         return context
 
     def frontmatter_prefixes(self):
@@ -198,11 +226,14 @@ class CompiledTemplate:
         contribute nothing; the empty string denotes the default prefix.
         """
         out = set()
+
         for e in self._data.examples:
             for ev in e.bindings.values():
                 _collect_value_prefixes(ev, out)
+
         for param in self._data.schema.params:
             _collect_type_prefixes(param.type, out)
+            
         return out
 
 

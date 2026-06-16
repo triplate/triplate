@@ -20,13 +20,13 @@ export type Token =
   | { kind: 'iri'; parts: Part[]; line: number; column: number }
   | { kind: 'params'; decls: ParamDecl[]; line: number; column: number }
   | {
-      kind: 'examples';
-      id: string;
-      description?: string;
-      bindings: Record<string, ExampleValue>;
-      line: number;
-      column: number;
-    }
+    kind: 'examples';
+    id: string;
+    description?: string;
+    bindings: Record<string, ExampleValue>;
+    line: number;
+    column: number;
+  }
   | { kind: 'for'; item: string; source: RefPath; join?: string; joinExact?: boolean; line: number; column: number }
   | { kind: 'endfor'; line: number; column: number }
   | { kind: 'if'; cond: Cond; line: number; column: number }
@@ -207,7 +207,7 @@ class Lexer {
     if (this.peek() !== '"') this.error('expected a quoted string');
     this.advance(1);
     let out = '';
-    for (;;) {
+    for (; ;) {
       const ch = this.peek();
       if (ch === '' || ch === '\n') this.error('unterminated quoted string');
       if (ch === '"') {
@@ -312,7 +312,7 @@ class Lexer {
         text = '';
       }
     };
-    for (;;) {
+    for (; ;) {
       const ch = this.peek();
       if (ch === '' || ch === '\n') this.error('unterminated $"…" string literal', line, col);
       if (ch === '"') {
@@ -366,7 +366,7 @@ class Lexer {
         text = '';
       }
     };
-    for (;;) {
+    for (; ;) {
       const ch = this.peek();
       if (ch === '' || ch === '\n') this.error('unterminated $<…> IRI template', line, col);
       if (ch === '>') {
@@ -447,7 +447,7 @@ class Lexer {
     let join: string | undefined;
     let joinExact = false;
     let seenJoin = false;
-    for (;;) {
+    for (; ;) {
       this.skipInline();
       if (atEnd() || !isIdentStart(this.peek())) break;
       const word = this.readIdent().toLowerCase();
@@ -524,7 +524,7 @@ class Lexer {
 
   /** Whitespace (incl. newlines), commas and `#` comments between frontmatter items. */
   private skipFront(): void {
-    for (;;) {
+    for (; ;) {
       const c = this.peek();
       if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === ',') {
         this.advance(1);
@@ -543,76 +543,136 @@ class Lexer {
   private lexFrontmatter(): void {
     const fmLine = this.line;
     const fmCol = this.col;
+
     this.consumeDashLine();
-    for (;;) {
+
+    for (; ;) {
       this.skipFront();
-      if (this.peek() === '') this.error('unterminated frontmatter (--- … ---)', fmLine, fmCol);
+
+      if (this.peek() === '') {
+        this.error('unterminated frontmatter (--- … ---)', fmLine, fmCol);
+      }
+
       if (this.atDashLine()) {
         this.consumeDashLine();
         return;
       }
+
       const line = this.line;
       const col = this.col;
       const kw = this.readIdent().toLowerCase();
-      if (kw === 'params') this.readFrontParams(line, col);
-      else if (kw === 'example') this.readFrontExample(line, col);
-      else this.error(`unknown frontmatter section: ${kw}`, line, col);
+
+      if (kw === 'params') {
+        this.readFrontParams(line, col);
+      }
+      else if (kw === 'example') {
+        this.readFrontExample(line, col);
+      }
+      else {
+        this.error(`unknown frontmatter section: ${kw}`, line, col);
+      }
     }
   }
 
   private expectBrace(what: string, line: number, col: number): void {
     this.skipFront();
-    if (this.peek() !== '{') this.error(`expected '{' after ${what}`, line, col);
+
+    if (this.peek() !== '{') {
+      this.error(`expected '{' after ${what}`, line, col);
+    }
+
     this.advance(1);
   }
 
   private readFrontParams(line: number, col: number): void {
     this.expectBrace('params', line, col);
-    const decls: ParamDecl[] = [];
-    for (;;) {
+
+    const declarations: ParamDecl[] = [];
+
+    for (; ;) {
       this.skipFront();
+
       if (this.peek() === '}') {
         this.advance(1);
         break;
       }
-      if (this.peek() === '') this.error('unterminated params { … }', line, col);
+
+      if (this.peek() === '') {
+        this.error('unterminated params { … }', line, col);
+      }
+
       const nameStart = this.pos;
       const name = this.readIdent();
+
       this.symbols.push({ kind: 'paramDecl', name, start: nameStart, end: this.pos });
+
       this.skipInline();
-      if (this.peek() !== ':') this.error(`expected ':' after parameter '${name}'`);
+
+      if (this.peek() !== ':') {
+        this.error(`expected ':' after parameter '${name}'`);
+      }
+
       this.advance(1);
       this.skipInline();
-      decls.push({ name, type: this.readTypeExpr() });
+
+      declarations.push({ name, type: this.readTypeExpr() });
     }
-    this.tokens.push({ kind: 'params', decls, line, column: col });
+
+    this.tokens.push({ kind: 'params', decls: declarations, line, column: col });
   }
 
   private readFrontExample(line: number, col: number): void {
     this.skipInline();
-    if (!isIdentStart(this.peek())) this.error('expected an example id', line, col);
+
+    if (!isIdentStart(this.peek())) {
+      this.error('expected an example id', line, col);
+    }
+
     let id = '';
-    while (isSlugChar(this.peek())) id += this.advance(1);
+
+    while (isSlugChar(this.peek())) {
+      id += this.advance(1);
+    }
+
     this.skipInline();
+
     let description: string | undefined;
-    if (this.peek() === '"') description = this.readQuotedString();
+
+    if (this.peek() === '"') {
+      description = this.readQuotedString();
+    }
+
     this.expectBrace('example', line, col);
+
     const bindings: Record<string, ExampleValue> = {};
-    for (;;) {
+
+    for (; ;) {
       this.skipFront();
+
       if (this.peek() === '}') {
         this.advance(1);
         break;
       }
-      if (this.peek() === '') this.error('unterminated example { … }', line, col);
+
+      if (this.peek() === '') {
+        this.error('unterminated example { … }', line, col);
+      }
+
       const nameStart = this.pos;
       const name = this.readIdent();
+
       this.symbols.push({ kind: 'bindingKey', name, start: nameStart, end: this.pos });
       this.skipInline();
-      if (this.peek() !== ':') this.error(`expected ':' after '${name}' in example`);
+
+      if (this.peek() !== ':') {
+        this.error(`expected ':' after '${name}' in example`);
+      }
+
       this.advance(1);
+
       bindings[name] = this.readExampleValue();
     }
+
     this.tokens.push({ kind: 'examples', id, description, bindings, line, column: col });
   }
 
@@ -622,23 +682,39 @@ class Lexer {
     let optional = false;
     let min: number | undefined;
     let max: number | undefined;
+
     if (this.peek() === '[' && this.peek(1) === ']') {
       this.advance(2);
       array = true;
     }
-    for (;;) {
+
+    for (; ;) {
       this.skipInline();
-      if (!isIdentStart(this.peek())) break;
+
+      if (!isIdentStart(this.peek())) {
+        break;
+      }
+
       const before = { pos: this.pos, line: this.line, col: this.col };
       const word = this.readIdent().toLowerCase();
+
       if (word === 'optional') {
         optional = true;
       } else if (word === 'min' || word === 'max') {
-        if (!array) this.error('min/max apply only to arrays ([])');
+        if (!array) {
+          this.error('min/max apply only to arrays ([])');
+        }
+
         this.skipInline();
+
         const n = this.readInt();
-        if (word === 'min') min = n;
-        else max = n;
+
+        if (word === 'min') {
+          min = n;
+        }
+        else {
+          max = n;
+        }
       } else {
         this.pos = before.pos;
         this.line = before.line;
@@ -646,49 +722,83 @@ class Lexer {
         break;
       }
     }
+
     return { base, array, optional, min, max };
   }
 
   private readTypeBase(): TypeBase {
-    if (this.peek() === '{') return this.readRecordType();
+    if (this.peek() === '{') {
+      return this.readRecordType();
+    }
+
     const line = this.line;
     const col = this.col;
     const ident = this.readIdent();
-    const low = ident.toLowerCase();
-    if (low === 'literal') {
-      if (this.peek() !== '(') this.error("expected '(' after literal");
+    const value = ident.toLowerCase();
+
+    if (value === 'literal') {
+      if (this.peek() !== '(') {
+        this.error("expected '(' after literal");
+      }
+
       this.advance(1);
-      const dtStart = this.pos;
+
+      const datatypeStart = this.pos;
       const datatype = this.readDatatypeRef();
-      this.emitDatatypeRef(dtStart, this.pos, datatype);
-      if (this.peek() !== ')') this.error("expected ')' after literal datatype");
+
+      this.emitDatatypeRef(datatypeStart, this.pos, datatype);
+
+      if (this.peek() !== ')') {
+        this.error("expected ')' after literal datatype");
+      }
+
       this.advance(1);
+
       return { kind: 'literal', datatype };
     }
-    if (SCALARS.has(low)) {
-      return { kind: low === 'datetime' ? 'dateTime' : low } as ScalarType;
+
+    if (SCALARS.has(value)) {
+      return { kind: value === 'datetime' ? 'dateTime' : value } as ScalarType;
     }
-    if (hasCustomType(low)) return { kind: 'custom', name: low };
+
+    if (hasCustomType(value)) {
+      return { kind: 'custom', name: value };
+    }
+
     this.error(`unknown type: ${ident}`, line, col);
   }
 
   private readRecordType(): TypeBase {
     this.advance(1); // {
+
     const fields: Record<string, TypeExpr> = {};
-    for (;;) {
+
+    for (; ;) {
       this.skipWs();
+
       if (this.peek() === '}') {
         this.advance(1);
         break;
       }
-      if (this.peek() === '') this.error('unterminated record type');
+
+      if (this.peek() === '') {
+        this.error('unterminated record type');
+      }
+
       const name = this.readIdent();
+
       this.skipInline();
-      if (this.peek() !== ':') this.error(`expected ':' after field '${name}'`);
+
+      if (this.peek() !== ':') {
+        this.error(`expected ':' after field '${name}'`);
+      }
+
       this.advance(1);
       this.skipInline();
+
       fields[name] = this.readTypeExpr();
     }
+
     return { kind: 'record', fields };
   }
 
@@ -696,88 +806,153 @@ class Lexer {
 
   private readExampleValue(): ExampleValue {
     this.skipInline();
-    const ch = this.peek();
+
+    const c = this.peek();
     const start = this.pos;
-    if (ch === '<') {
+
+    if (c === '<') {
       const value = this.readDatatypeRef().slice(1, -1);
+
       this.symbols.push({ kind: 'iri', value, start, end: this.pos });
+
       return { kind: 'iri', value };
     }
-    if (ch === '"') {
+
+    if (c === '"') {
       const value = this.readQuotedString();
-      const litEnd = this.pos;
+      const literalEnd = this.pos;
+
       if (this.peek() === '@') {
         this.advance(1);
+
         let lang = '';
-        while (isLangChar(this.peek())) lang += this.advance(1);
-        this.symbols.push({ kind: 'literal', value, start, end: litEnd });
+
+        while (isLangChar(this.peek())) {
+          lang += this.advance(1);
+        }
+
+        this.symbols.push({ kind: 'literal', value, start, end: literalEnd });
+
         return { kind: 'string', value, lang };
       }
+
       if (this.peek() === '^' && this.peek(1) === '^') {
         this.advance(2);
-        const dtStart = this.pos;
+
+        const datatypeStart = this.pos;
         const datatype = this.readDatatypeRef();
+
         // Push the literal (earlier offset) before its datatype ref to keep symbols ascending.
-        this.symbols.push({ kind: 'literal', value, datatype, start, end: litEnd });
-        this.emitDatatypeRef(dtStart, this.pos, datatype);
+        this.symbols.push({ kind: 'literal', value, datatype, start, end: literalEnd });
+
+        this.emitDatatypeRef(datatypeStart, this.pos, datatype);
+
         return { kind: 'string', value, datatype };
       }
-      this.symbols.push({ kind: 'literal', value, start, end: litEnd });
+
+      this.symbols.push({ kind: 'literal', value, start, end: literalEnd });
+
       return { kind: 'string', value };
     }
-    if (ch === '[') return this.readExampleList();
-    if (ch === '{') return this.readExampleRecord();
-    if (ch === '-' || isDigit(ch)) {
-      let num = ch === '-' ? this.advance(1) : '';
-      while (isDigit(this.peek()) || '.eE+-'.includes(this.peek())) num += this.advance(1);
-      return { kind: 'number', value: Number(num) };
+
+    if (c === '[') {
+      return this.readExampleList();
     }
-    if (isLetter(ch)) {
+
+    if (c === '{') {
+      return this.readExampleRecord();
+    }
+
+    if (c === '-' || isDigit(c)) {
+      let n = c === '-' ? this.advance(1) : '';
+
+      while (isDigit(this.peek()) || '.eE+-'.includes(this.peek())) {
+        n += this.advance(1);
+      }
+
+      return { kind: 'number', value: Number(n) };
+    }
+
+    if (isLetter(c)) {
       const word = this.readIdent();
-      if (word === 'true' || word === 'false') return { kind: 'bool', value: word === 'true' };
+
+      if (word === 'true' || word === 'false') {
+        return { kind: 'bool', value: word === 'true' };
+      }
+
       if (this.peek() === ':') {
         this.advance(1);
+
         let local = '';
-        while (this.peek() !== '' && /[A-Za-z0-9_.-]/.test(this.peek())) local += this.advance(1);
+
+        while (this.peek() !== '' && /[A-Za-z0-9_.-]/.test(this.peek())) {
+          local += this.advance(1);
+        }
+
         this.symbols.push({ kind: 'pname', prefix: word, local, start, end: this.pos });
+
         return { kind: 'pname', prefix: word, local };
       }
+
       this.error(`invalid example value starting with '${word}'`);
     }
+
     this.error('expected an example value');
   }
 
   private readExampleList(): ExampleValue {
     this.advance(1); // [
+
     const items: ExampleValue[] = [];
-    for (;;) {
+
+    for (; ;) {
       this.skipWs();
+
       if (this.peek() === ']') {
         this.advance(1);
         break;
       }
-      if (this.peek() === '') this.error('unterminated example list');
+
+      if (this.peek() === '') {
+        this.error('unterminated example list');
+      }
+
       items.push(this.readExampleValue());
     }
+
     return { kind: 'list', items };
   }
 
   private readExampleRecord(): ExampleValue {
     this.advance(1); // {
+
     const fields: Record<string, ExampleValue> = {};
-    for (;;) {
+
+    for (; ;) {
       this.skipWs();
+
       if (this.peek() === '}') {
         this.advance(1);
         break;
       }
-      if (this.peek() === '') this.error('unterminated example record');
+
+      if (this.peek() === '') {
+        this.error('unterminated example record');
+      }
+
       const name = this.readIdent();
+
       this.skipInline();
-      if (this.peek() !== ':') this.error(`expected ':' after field '${name}'`);
+
+      if (this.peek() !== ':') {
+        this.error(`expected ':' after field '${name}'`);
+      }
+
       this.advance(1);
+
       fields[name] = this.readExampleValue();
     }
+
     return { kind: 'record', fields };
   }
 }

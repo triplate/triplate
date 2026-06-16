@@ -19,8 +19,20 @@ export {
   TriplateTypeError,
   TriplateCardinalityError,
 } from './errors.js';
-export { registerType, type CustomSerializer } from './types/index.js';
-export type { Schema, ParamDecl, TypeExpr, ExampleSet, TemplateSymbol } from './ast.js';
+export {
+  registerType,
+  type CustomSerializer
+} from './types/index.js';
+export type {
+  Schema,
+  ParamDecl,
+  TypeExpr,
+  TypeBase,
+  ScalarType,
+  ExampleSet,
+  ExampleValue,
+  TemplateSymbol
+} from './ast.js';
 
 /** An RDF/JS-style term, accepted by the `term` type. */
 export interface Term {
@@ -47,7 +59,7 @@ export class CompiledTemplate {
   constructor(
     private readonly data: CompiledTemplateData,
     private readonly source: string,
-  ) {}
+  ) { }
 
   /** The declared parameter schema (from the --- frontmatter header). */
   get schema(): Schema {
@@ -85,8 +97,13 @@ export class CompiledTemplate {
   /** Render using a named example set (for development/preview). */
   previewExample(id: string): string {
     const set = this.data.examples.find((e) => e.id === id);
-    if (!set) throw new Error(`no example set with id: ${id}`);
+
+    if (!set) {
+      throw new Error(`no example set with id: ${id}`);
+    }
+
     const context = exampleSetToContext(set, this.data.schema, extractPrefixes(this.source));
+
     return renderData(this.data, context);
   }
 
@@ -105,16 +122,27 @@ export class CompiledTemplate {
    */
   contextFromStrings(inputs: Record<string, string | undefined>): Context {
     const context: Context = {};
+
     for (const param of this.data.schema.params) {
       const { base, array } = param.type;
-      if (base.kind === 'record') continue;
+
+      if (base.kind === 'record') {
+        continue;
+      }
+
       const raw = inputs[param.name];
-      if (raw === undefined || raw.trim() === '') continue;
+
+      if (raw === undefined || raw.trim() === '') {
+        continue;
+      }
+
       context[param.name] = array
         ? raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0).map((s) => coerceScalar(base.kind, s))
         : coerceScalar(base.kind, raw);
     }
+
     validateContext(this.data.schema, context);
+
     return context;
   }
 
@@ -130,19 +158,31 @@ export class CompiledTemplate {
    */
   frontmatterPrefixes(): Set<string> {
     const out = new Set<string>();
+
     for (const set of this.data.examples) {
-      for (const ev of Object.values(set.bindings)) collectValuePrefixes(ev, out);
+      for (const ev of Object.values(set.bindings)) {
+        collectValuePrefixes(ev, out);
+      }
     }
-    for (const param of this.data.schema.params) collectTypePrefixes(param.type, out);
+
+    for (const param of this.data.schema.params) {
+      collectTypePrefixes(param.type, out);
+    }
+
     return out;
   }
 }
 
 /** Adds the prefix of a datatype reference (`prefix:local`); `<iri>` forms contribute nothing. */
 function addDatatypePrefix(dt: string, out: Set<string>): void {
-  if (dt.startsWith('<')) return;
+  if (dt.startsWith('<')) {
+    return;
+  }
   const i = dt.indexOf(':');
-  if (i >= 0) out.add(dt.slice(0, i));
+
+  if (i >= 0) {
+    out.add(dt.slice(0, i));
+  }
 }
 
 /** Collects prefixes from an example value, recursing into lists and records. */
@@ -152,13 +192,19 @@ function collectValuePrefixes(ev: ExampleValue, out: Set<string>): void {
       out.add(ev.prefix);
       break;
     case 'string':
-      if (ev.datatype) addDatatypePrefix(ev.datatype, out);
+      if (ev.datatype) {
+        addDatatypePrefix(ev.datatype, out);
+      }
       break;
     case 'list':
-      for (const it of ev.items) collectValuePrefixes(it, out);
+      for (const it of ev.items) {
+        collectValuePrefixes(it, out);
+      }
       break;
     case 'record':
-      for (const f of Object.values(ev.fields)) collectValuePrefixes(f, out);
+      for (const f of Object.values(ev.fields)) {
+        collectValuePrefixes(f, out);
+      }
       break;
     // iri, number, bool → no prefix
   }
@@ -167,8 +213,11 @@ function collectValuePrefixes(ev: ExampleValue, out: Set<string>): void {
 /** Collects literal-datatype prefixes from a declared type, recursing into record fields. */
 function collectTypePrefixes(type: TypeExpr, out: Set<string>): void {
   const base = type.base;
+
   if (base.kind === 'record') {
-    for (const ft of Object.values(base.fields)) collectTypePrefixes(ft, out);
+    for (const ft of Object.values(base.fields)) {
+      collectTypePrefixes(ft, out);
+    }
   } else if (base.kind === 'literal') {
     addDatatypePrefix(base.datatype, out);
   }
@@ -178,19 +227,33 @@ function collectTypePrefixes(type: TypeExpr, out: Set<string>): void {
 function coerceScalar(kind: string, raw: string): TriplateValue {
   switch (kind) {
     case 'int': {
-      if (!/^[+-]?\d+$/.test(raw)) throw new TriplateTypeError(`invalid int: ${JSON.stringify(raw)}`);
+      if (!/^[+-]?\d+$/.test(raw)) {
+        throw new TriplateTypeError(`invalid int: ${JSON.stringify(raw)}`);
+      }
+
       const n = Number(raw);
+
       return Number.isSafeInteger(n) ? n : BigInt(raw);
     }
     case 'decimal':
     case 'double': {
       const n = Number(raw);
-      if (!Number.isFinite(n)) throw new TriplateTypeError(`invalid ${kind}: ${JSON.stringify(raw)}`);
+
+      if (!Number.isFinite(n)) {
+        throw new TriplateTypeError(`invalid ${kind}: ${JSON.stringify(raw)}`);
+      }
+
       return n;
     }
     case 'bool':
-      if (raw === 'true') return true;
-      if (raw === 'false') return false;
+      if (raw === 'true') {
+        return true;
+      }
+
+      if (raw === 'false') {
+        return false;
+      }
+      
       throw new TriplateTypeError(`invalid bool: ${JSON.stringify(raw)} (expected "true" or "false")`);
     default:
       // iri, pname, string, literal, term, raw, date, dateTime, time, custom → string
