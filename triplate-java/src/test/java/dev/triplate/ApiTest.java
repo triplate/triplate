@@ -1,6 +1,7 @@
 package dev.triplate;
 
 import dev.triplate.Ast.BindingKeySym;
+import dev.triplate.Ast.CommentSym;
 import dev.triplate.Ast.IriSym;
 import dev.triplate.Ast.LiteralSym;
 import dev.triplate.Ast.ParamDeclSym;
@@ -185,6 +186,37 @@ class ApiTest {
   void symbolsAreInAscendingSourceOrder() {
     int prev = -1;
     for (TemplateSymbol s : Triplate.compile(SYM_SRC).symbols()) {
+      assertTrue(s.start() >= prev, "symbols must be in ascending source order");
+      prev = s.start();
+    }
+  }
+
+  @Test
+  void frontmatterCommentsArePositionedSymbols() {
+    String src =
+        "---\n"
+            + "# a standalone comment\n"
+            + "params {\n  who: pname  # the subject\n}\n"
+            + "---\n"
+            + "?s a ${who}";
+    List<CommentSym> comments =
+        Triplate.compile(src).symbols().stream()
+            .filter(s -> s instanceof CommentSym)
+            .map(s -> (CommentSym) s)
+            .toList();
+    assertEquals(
+        List.of("# a standalone comment", "# the subject"),
+        comments.stream().map(CommentSym::value).toList());
+    for (CommentSym c : comments) {
+      assertEquals(c.value(), src.substring(c.start(), c.end()));
+    }
+    // Body comments stay text, not symbols.
+    assertTrue(
+        Triplate.compile("---\nparams { x: int }\n---\n# body ${x}").symbols().stream()
+            .noneMatch(s -> s instanceof CommentSym));
+    // Comments do not disturb ascending source order.
+    int prev = -1;
+    for (TemplateSymbol s : Triplate.compile(src).symbols()) {
       assertTrue(s.start() >= prev, "symbols must be in ascending source order");
       prev = s.start();
     }

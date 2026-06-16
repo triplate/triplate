@@ -531,7 +531,9 @@ class Lexer {
         continue;
       }
       if (c === '#') {
+        const start = this.pos;
         while (this.peek() !== '' && this.peek() !== '\n') this.advance(1);
+        this.symbols.push({ kind: 'comment', value: this.s.slice(start, this.pos), start, end: this.pos });
         continue;
       }
       break;

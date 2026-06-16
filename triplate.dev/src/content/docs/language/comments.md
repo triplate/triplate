@@ -239,8 +239,9 @@ declarations.
 
 Comments (`#`), complete `<…>` IRIs, and string literals (`"…"`, `'…'`,
 triple-quoted) pass through verbatim — a `$` or `{` inside them is literal text.
-A `#` inside a string or IRI is not a comment. Frontmatter comments stay
-metadata; a comment in the body is emitted.
+A `#` inside a string or IRI is not a comment. Frontmatter comments are never
+emitted, but the parser retains them as positioned symbols so tools like
+formatters can preserve and re-indent them; a comment in the body is emitted.
 
 ## Detection
 

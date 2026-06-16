@@ -182,6 +182,28 @@ def test_symbol_rename_sites_group_by_name():
     assert [s.kind for s in sites] == ["paramDecl", "bindingKey", "paramRef", "paramRef"]
 
 
+def test_frontmatter_comments_are_positioned_symbols():
+    src = (
+        "---\n"
+        "# a standalone comment\n"
+        "params {\n  who: pname  # the subject\n}\n"
+        "---\n"
+        "?s a ${who}"
+    )
+    comments = [s for s in compile(src).symbols() if s.kind == "comment"]
+    assert [c.value for c in comments] == ["# a standalone comment", "# the subject"]
+    for c in comments:
+        assert src[c.start : c.end] == c.value
+    # Body comments stay text, not symbols.
+    assert not any(
+        s.kind == "comment"
+        for s in compile("---\nparams { x: int }\n---\n# body ${x}").symbols()
+    )
+    # Comments do not disturb ascending source order.
+    offsets = [s.start for s in compile(src).symbols()]
+    assert offsets == sorted(offsets)
+
+
 def test_module_symbols_is_lenient_on_malformed_template():
     bad = '---\nparams { a: int }\nexample x {\n  who: schema:Person\n'
     with pytest.raises(TriplateSyntaxError):

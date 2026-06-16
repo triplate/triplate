@@ -651,7 +651,9 @@ final class Lexer {
         continue;
       }
       if (c == '#') {
+        int start = pos;
         while (peek() != '\0' && peek() != '\n') advance(1);
+        symbols.add(new Ast.CommentSym(s.substring(start, pos), start, pos));
         continue;
       }
       break;

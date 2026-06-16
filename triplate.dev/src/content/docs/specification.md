@@ -79,7 +79,9 @@ SELECT ?s WHERE { … }
 
 - The frontmatter has a mandatory `params { … }` section and zero or more
   `example … { … }` sections (§8). `#` comments and whitespace inside `---`
-  are ignored; both declarations and bindings use `name: …`.
+  do not affect parsing or output; comments are retained as positioned symbols
+  so tooling (e.g. formatters) can preserve and re-indent them. Both
+  declarations and bindings use `name: …`.
 - **Types**: `iri`, `pname`, `string`, `int`, `decimal`, `double`,
   `bool`, `date`, `dateTime`, `time`, `literal(<dt>)`, `term`, `raw`.
 - **Modifiers** (fixed order): `<type> ['[]'] ['optional'] ['min' N] ['max' N]`.

@@ -523,8 +523,12 @@ class _Lexer:
                 self._advance(1)
                 continue
             if c == "#":
+                start = self.pos
                 while self._peek() not in ("", "\n"):
                     self._advance(1)
+                self.symbols.append(
+                    TemplateSymbol("comment", start, self.pos, value=self.s[start : self.pos])
+                )
                 continue
             break
 
