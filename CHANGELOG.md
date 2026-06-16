@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/triplate/triplate/compare/v0.5.0...v0.5.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* Comments missing in AST when parsing. ([4e0dc72](https://github.com/triplate/triplate/commit/4e0dc7239dfdb75a42ff8ad34aea2667ea1662ac))
+
 ## [0.5.0](https://github.com/triplate/triplate/compare/v0.4.0...v0.5.0) (2026-06-15)
 
 
