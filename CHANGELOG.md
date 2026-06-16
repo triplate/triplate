@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/triplate/triplate/compare/v0.5.1...v0.5.2) (2026-06-16)
+
+
+### Bug Fixes
+
+* Exporting keyword token names. ([f9b613f](https://github.com/triplate/triplate/commit/f9b613fcf08d12802ff1734f07f769c1cb0d50ce))
+
 ## [0.5.1](https://github.com/triplate/triplate/compare/v0.5.0...v0.5.1) (2026-06-16)
 
 
