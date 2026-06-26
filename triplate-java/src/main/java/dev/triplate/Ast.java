@@ -155,9 +155,26 @@ public final class Ast {
    * grouping by {@code name} yields every rename site of a parameter.
    * {@link PnameSym}/{@link IriSym}/{@link LiteralSym} only ever occur in the
    * frontmatter and feed the overlay (tooltips, prefix rename).
+   *
+   * <p>{@link LoopDeclSym} (the {@code item} in a {@code {% for item in … %}}
+   * header) and {@link LoopRefSym} (every body reference whose root segment
+   * resolves to an in-scope loop variable) are scoped, not name-spaced: each
+   * {@link LoopDeclSym} carries a unique {@code scope} id and each
+   * {@link LoopRefSym} carries the {@code scope} of the binding it resolves to,
+   * so grouping by {@code scope} yields every rename site of one loop variable
+   * (handling shadowing that grouping by {@code name} cannot). A reference that
+   * does not resolve to a loop variable stays a {@link ParamRefSym}.
    */
   public sealed interface TemplateSymbol
-      permits ParamDeclSym, ParamRefSym, BindingKeySym, PnameSym, IriSym, LiteralSym, CommentSym {
+      permits ParamDeclSym,
+          ParamRefSym,
+          BindingKeySym,
+          LoopDeclSym,
+          LoopRefSym,
+          PnameSym,
+          IriSym,
+          LiteralSym,
+          CommentSym {
     int start();
 
     int end();
@@ -168,6 +185,10 @@ public final class Ast {
   public record ParamRefSym(String name, int start, int end) implements TemplateSymbol {}
 
   public record BindingKeySym(String name, int start, int end) implements TemplateSymbol {}
+
+  public record LoopDeclSym(String name, int scope, int start, int end) implements TemplateSymbol {}
+
+  public record LoopRefSym(String name, int scope, int start, int end) implements TemplateSymbol {}
 
   public record PnameSym(String prefix, String local, int start, int end) implements TemplateSymbol {}
 

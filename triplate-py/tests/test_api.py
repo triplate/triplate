@@ -211,5 +211,68 @@ def test_module_symbols_is_lenient_on_malformed_template():
     assert [s.kind for s in symbols(bad)] == ["paramDecl", "bindingKey", "pname"]
 
 
+def test_for_loop_emits_loop_decl_and_loop_refs_in_one_scope():
+    src = "---\nparams { graphIris: pname[] }\n---\n{% for g in graphIris %} FROM ${g} ${g} {% endfor %}"
+    syms = symbols(src)
+    # The for source is an ordinary parameter reference, not a loop ref.
+    src_refs = [s for s in syms if s.kind == "paramRef"]
+    assert [s.name for s in src_refs] == ["graphIris"]
+    decls = [s for s in syms if s.kind == "loopDecl"]
+    refs = [s for s in syms if s.kind == "loopRef"]
+    assert [d.name for d in decls] == ["g"]
+    assert [r.name for r in refs] == ["g", "g"]
+    # Declaration and both references share the one scope id.
+    assert len({decls[0].scope, *(r.scope for r in refs)}) == 1
+    # Spans still ascend (the item precedes the source in the header).
+    offsets = [s.start for s in syms]
+    assert offsets == sorted(offsets)
+
+
+def test_loop_symbol_spans_slice_their_own_text():
+    src = "---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g}{% endfor %}"
+    for s in symbols(src):
+        if s.kind in ("loopDecl", "loopRef"):
+            assert src[s.start : s.end] == s.name
+
+
+def test_loop_shadowing_binds_refs_to_their_own_scope():
+    src = (
+        "---\nparams { a: pname[]\n  b: pname[] }\n---\n"
+        "{% for g in a %}${g}{% for g in b %}${g}{% endfor %}${g}{% endfor %}"
+    )
+    syms = symbols(src)
+    decls = [s for s in syms if s.kind == "loopDecl"]
+    refs = [s for s in syms if s.kind == "loopRef"]
+    assert len(decls) == 2
+    outer, inner = decls[0].scope, decls[1].scope
+    assert outer != inner
+    # Refs in source order: outer ${g}, inner ${g}, outer ${g}.
+    assert [r.scope for r in refs] == [outer, inner, outer]
+
+
+def test_loop_variable_shadows_same_named_parameter():
+    src = "---\nparams { g: pname\n  xs: pname[] }\n---\n${g} {% for g in xs %}${g}{% endfor %} ${g}"
+    syms = symbols(src)
+    # Two ${g} outside the loop stay paramRefs; the in-loop ${g} is a loopRef.
+    assert [s.name for s in syms if s.kind == "paramRef"] == ["g", "xs", "g"]
+    refs = [s for s in syms if s.kind == "loopRef"]
+    decl = next(s for s in syms if s.kind == "loopDecl")
+    assert [r.name for r in refs] == ["g"]
+    assert refs[0].scope == decl.scope
+
+
+def test_dotted_loop_reference_marks_only_the_root():
+    src = "---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g.field}{% endfor %}"
+    refs = [s for s in symbols(src) if s.kind == "loopRef"]
+    assert [r.name for r in refs] == ["g"]
+
+
+def test_module_symbols_collects_loop_symbols_on_malformed_template():
+    bad = "---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g} {% if"
+    kinds = [s.kind for s in symbols(bad)]
+    assert "loopDecl" in kinds
+    assert "loopRef" in kinds
+
+
 def test_double_specials():
     assert render(H("x: double", "${x}"), x=float("nan")) == '"NaN"^^<http://www.w3.org/2001/XMLSchema#double>'

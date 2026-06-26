@@ -7,7 +7,8 @@
    through inert.
 
    Keyword and type tokens are matched case-insensitively (ASCII fold).
-   Variable names, IRIs, string content and language tags are case-sensitive. *)
+   Variable names, IRIs, string content, language tags and the true/false
+   term literals (RDF term syntax) are case-sensitive. *)
 
 Template     ::= Frontmatter Body
 

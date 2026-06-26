@@ -10,7 +10,9 @@ import dev.triplate.Ast.ScalarType;
 import dev.triplate.Ast.TypeBase;
 import dev.triplate.Ast.TypeExpr;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +87,18 @@ final class Lexer {
   /** Positioned source symbols, accumulated in source order. {@code pos} is an
    *  absolute, 0-based UTF-16 offset, so it doubles as the symbol offset. */
   private final List<Ast.TemplateSymbol> symbols = new ArrayList<>();
+
+  /** One active {@code {% for %}} binding. */
+  private record ScopeEntry(String name, int id) {}
+
+  /** Active {@code {% for %}} bindings, innermost last. A body reference whose
+   *  root segment matches an entry (searched innermost-to-outermost for
+   *  shadowing) is a loopRef carrying that entry's scope id, not a paramRef. */
+  private final Deque<ScopeEntry> scopes = new ArrayDeque<>();
+
+  /** Monotonic id source: every loopDecl gets a fresh, unique scope id. */
+  private int nextScope = 0;
+
   private StringBuilder buf = new StringBuilder();
   private boolean lineHasContent = false;
   private String stringDelim = null;
@@ -352,10 +366,20 @@ final class Lexer {
 
   // ---- positioned symbols --------------------------------------------------
 
-  /** Emit a body reference symbol for the root segment of a {@code ${…}}/{@code {% … %}} path. */
+  /** Emit a body reference symbol for the root segment of a {@code ${…}}/{@code {% … %}} path.
+   *  If the root binds to an in-scope loop variable (searched innermost-to-outermost for
+   *  shadowing) it is a loopRef carrying that binding's scope id; otherwise it is a paramRef. */
   private void emitRef(int rootStart, List<String> path) {
     String root = path.get(0);
-    symbols.add(new Ast.ParamRefSym(root, rootStart, rootStart + root.length()));
+    int end = rootStart + root.length();
+    // The deque is used as a stack: iterator() yields innermost (last pushed) first.
+    for (ScopeEntry scope : scopes) {
+      if (scope.name().equals(root)) {
+        symbols.add(new Ast.LoopRefSym(root, scope.id(), rootStart, end));
+        return;
+      }
+    }
+    symbols.add(new Ast.ParamRefSym(root, rootStart, end));
   }
 
   /** Emit a datatype reference ({@code <iri>} or {@code prefix:local}) as an iri/pname symbol. */
@@ -510,12 +534,18 @@ final class Lexer {
     String keyword = readIdent().toLowerCase();
     switch (keyword) {
       case "for" -> {
-        ForTok f = readForHeader(startLine, startCol);
-        tokens.add(f);
+        ForHeader f = readForHeader(startLine, startCol);
+        tokens.add(f.tok());
+        // Push the new binding only after the header (its source ref already
+        // resolved against the outer scopes) so the loop body sees `item`.
+        scopes.push(new ScopeEntry(f.tok().item(), f.scope()));
       }
       case "endfor" -> {
         endTag("endfor");
         tokens.add(new EndForTok(startLine, startCol));
+        // Pop the innermost binding; tolerant of malformed input (no open for)
+        // under the lenient extractSymbols reader.
+        if (!scopes.isEmpty()) scopes.pop();
       }
       case "if" -> {
         tokens.add(new IfTok(readCond(), startLine, startCol));
@@ -586,20 +616,30 @@ final class Lexer {
     return new JoinClause(join, joinExact);
   }
 
-  private ForTok readForHeader(int startLine, int startCol) {
+  /** A {@code for} token paired with the scope id allocated for its loop variable. */
+  private record ForHeader(ForTok tok, int scope) {}
+
+  private ForHeader readForHeader(int startLine, int startCol) {
     skipInline();
+    int itemStart = pos;
     String item = readIdent();
     skipInline();
     if (!readIdent().equalsIgnoreCase("in")) throw error("expected 'in' in %for");
     skipInline();
     int rootStart = pos;
     List<String> source = readPath();
+    // Emit the `item` binding (earlier in source) before the source ref to keep
+    // symbols in ascending order. The new scope is not pushed until lexTag, so a
+    // loop iterating an outer loop variable still resolves against the outer
+    // bindings here.
+    int scope = nextScope++;
+    symbols.add(new Ast.LoopDeclSym(item, scope, itemStart, itemStart + item.length()));
     emitRef(rootStart, source);
     JoinClause jc = readJoinClause(this::atTagEnd, "%for");
     skipInline();
     if (!atTagEnd()) throw error("unexpected content in %for directive");
     advance(2);
-    return new ForTok(item, source, jc.join(), jc.joinExact(), startLine, startCol);
+    return new ForHeader(new ForTok(item, source, jc.join(), jc.joinExact(), startLine, startCol), scope);
   }
 
   private Cond readCond() {

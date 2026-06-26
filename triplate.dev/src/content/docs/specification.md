@@ -4,7 +4,7 @@ description: The Triplate language specification — host-agnostic templating fo
 ---
 
 :::note[Document status]
-- **Version:** 0.3
+- **Version:** 0.4
 - **Status:** Draft — the language surface may still change before 1.0.
 - **Date:** 2026-06-15
 - **Authors:** Sebastian Faubel; Claude Code
@@ -45,7 +45,8 @@ or `{` inside them is literal text:
 > per-dialect *term profile* (planned), not a syntax difference.
 
 Keywords and type names fold ASCII case (`{% FOR %}`, `iri`/`IRI`); variable
-names, IRIs, string content, and language tags are case-sensitive.
+names, IRIs, string content, language tags, and the `true`/`false` term
+literals (RDF term syntax, §8) are case-sensitive.
 
 ## 2. The header — `---` frontmatter (mandatory)
 

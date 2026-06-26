@@ -85,6 +85,12 @@ class Lexer {
   /** Positioned source symbols, accumulated in source order. `this.pos` is an
    *  absolute, 0-based UTF-16 offset, so it doubles as the symbol offset. */
   readonly symbols: TemplateSymbol[] = [];
+  /** Active `{% for %}` bindings, innermost last. A body reference whose root
+   *  segment matches an entry (searched innermost-to-outermost for shadowing)
+   *  is a `loopRef` carrying that entry's scope id rather than a `paramRef`. */
+  private scopes: { name: string; id: number }[] = [];
+  /** Monotonic id source: every `loopDecl` gets a fresh, unique scope id. */
+  private nextScope = 0;
   private buf = '';
   private lineHasContent = false;
   private stringDelim: string | null = null;
@@ -242,9 +248,20 @@ class Lexer {
 
   // ---- positioned symbols ------------------------------------------------
 
-  /** Emit a body reference symbol for the root segment of a `${…}`/`{% … %}` path. */
+  /** Emit a body reference symbol for the root segment of a `${…}`/`{% … %}` path.
+   *  If the root binds to an in-scope loop variable (searched innermost-to-
+   *  outermost for shadowing) it is a `loopRef` carrying that binding's scope id;
+   *  otherwise it is a `paramRef`. */
   private emitRef(rootStart: number, path: RefPath): void {
-    this.symbols.push({ kind: 'paramRef', name: path[0], start: rootStart, end: rootStart + path[0].length });
+    const root = path[0];
+    const end = rootStart + root.length;
+    for (let i = this.scopes.length - 1; i >= 0; i--) {
+      if (this.scopes[i].name === root) {
+        this.symbols.push({ kind: 'loopRef', name: root, scope: this.scopes[i].id, start: rootStart, end });
+        return;
+      }
+    }
+    this.symbols.push({ kind: 'paramRef', name: root, start: rootStart, end });
   }
 
   /** Emit a datatype reference (`<iri>` or `prefix:local`) as an iri/pname symbol. */
@@ -401,11 +418,17 @@ class Lexer {
       case 'for': {
         const f = this.readForHeader();
         this.tokens.push({ kind: 'for', item: f.item, source: f.source, join: f.join, joinExact: f.joinExact, line, column: col });
+        // Push the new binding only after the header (its source ref already
+        // resolved against the outer scopes) so the loop body sees `item`.
+        this.scopes.push({ name: f.item, id: f.scope });
         break;
       }
       case 'endfor':
         this.endTag('endfor');
         this.tokens.push({ kind: 'endfor', line, column: col });
+        // Pop the innermost binding; tolerant of malformed input (no open for)
+        // under the lenient `extractSymbols` reader.
+        this.scopes.pop();
         break;
       case 'if':
         this.tokens.push({ kind: 'if', cond: this.readCond(), line, column: col });
@@ -466,20 +489,27 @@ class Lexer {
     return { join, joinExact };
   }
 
-  private readForHeader(): { item: string; source: RefPath; join?: string; joinExact?: boolean } {
+  private readForHeader(): { item: string; source: RefPath; scope: number; join?: string; joinExact?: boolean } {
     this.skipInline();
+    const itemStart = this.pos;
     const item = this.readIdent();
     this.skipInline();
     if (this.readIdent().toLowerCase() !== 'in') this.error("expected 'in' in %for");
     this.skipInline();
     const rootStart = this.pos;
     const source = this.readPath();
+    // Emit the `item` binding (earlier in source) before the source ref to keep
+    // symbols in ascending order. The new scope is not pushed until `lexTag`, so
+    // a loop iterating an outer loop variable still resolves against the outer
+    // bindings here.
+    const scope = this.nextScope++;
+    this.symbols.push({ kind: 'loopDecl', name: item, scope, start: itemStart, end: itemStart + item.length });
     this.emitRef(rootStart, source);
     const { join, joinExact } = this.readJoinClause(() => this.atTagEnd(), '%for');
     this.skipInline();
     if (!this.atTagEnd()) this.error('unexpected content in %for directive');
     this.advance(2);
-    return { item, source, join, joinExact };
+    return { item, source, scope, join, joinExact };
   }
 
   private readCond(): Cond {

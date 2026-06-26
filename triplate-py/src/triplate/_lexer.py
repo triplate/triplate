@@ -80,6 +80,12 @@ class _Lexer:
         # Positioned source symbols, accumulated in source order. self.pos is an
         # absolute, 0-based code-point offset, so it doubles as the symbol offset.
         self.symbols = []
+        # Active {% for %} bindings, innermost last: a (name, id) tuple per loop.
+        # A body reference whose root matches an entry (searched innermost-to-
+        # outermost for shadowing) is a loopRef carrying that entry's scope id.
+        self.scopes = []
+        # Monotonic id source: every loopDecl gets a fresh, unique scope id.
+        self.next_scope = 0
         self.buf = []
         self.line_has_content = False
         self.string_delim = None
@@ -254,10 +260,19 @@ class _Lexer:
     # ---- positioned symbols ------------------------------------------------
 
     def _emit_ref(self, root_start, path):
-        """Emit a body reference symbol for the root segment of a ${…}/{% … %} path."""
-        self.symbols.append(
-            TemplateSymbol("paramRef", root_start, root_start + len(path[0]), name=path[0])
-        )
+        """Emit a body reference symbol for the root segment of a ${…}/{% … %} path.
+
+        If the root binds to an in-scope loop variable (searched innermost-to-
+        outermost for shadowing) it is a loopRef carrying that binding's scope id;
+        otherwise it is a paramRef.
+        """
+        root = path[0]
+        end = root_start + len(root)
+        for name, scope_id in reversed(self.scopes):
+            if name == root:
+                self.symbols.append(TemplateSymbol("loopRef", root_start, end, name=root, scope=scope_id))
+                return
+        self.symbols.append(TemplateSymbol("paramRef", root_start, end, name=root))
 
     def _emit_datatype_ref(self, start, end, dt):
         """Emit a datatype reference (`<iri>` or `prefix:local`) as an iri/pname symbol."""
@@ -401,10 +416,18 @@ class _Lexer:
         keyword = self._read_ident().lower()
         if keyword == "for":
             f = self._read_for_header()
+            scope = f.pop("scope")
             self.tokens.append({"kind": "for", **f, "line": line, "column": col})
+            # Push the new binding only after the header (its source ref already
+            # resolved against the outer scopes) so the loop body sees `item`.
+            self.scopes.append((f["item"], scope))
         elif keyword == "endfor":
             self._end_tag("endfor")
             self.tokens.append({"kind": "endfor", "line": line, "column": col})
+            # Pop the innermost binding; tolerant of malformed input (no open
+            # for) under the lenient extract_symbols reader.
+            if self.scopes:
+                self.scopes.pop()
         elif keyword == "if":
             cond = self._read_cond()
             self.tokens.append({"kind": "if", "cond": cond, "line": line, "column": col})
@@ -465,6 +488,7 @@ class _Lexer:
 
     def _read_for_header(self):
         self._skip_inline()
+        item_start = self.pos
         item = self._read_ident()
         self._skip_inline()
         if self._read_ident().lower() != "in":
@@ -472,13 +496,22 @@ class _Lexer:
         self._skip_inline()
         root_start = self.pos
         source = self._read_path()
+        # Emit the `item` binding (earlier in source) before the source ref to
+        # keep symbols in ascending order. The new scope is not pushed until
+        # _lex_tag, so a loop iterating an outer loop variable still resolves
+        # against the outer bindings here.
+        scope = self.next_scope
+        self.next_scope += 1
+        self.symbols.append(
+            TemplateSymbol("loopDecl", item_start, item_start + len(item), name=item, scope=scope)
+        )
         self._emit_ref(root_start, source)
         join, join_exact = self._read_join_clause(self._at_tag_end, "%for")
         self._skip_inline()
         if not self._at_tag_end():
             self._error("unexpected content in %for directive")
         self._advance(2)
-        return {"item": item, "source": source, "join": join, "join_exact": join_exact}
+        return {"item": item, "source": source, "scope": scope, "join": join, "join_exact": join_exact}
 
     def _read_cond(self):
         self._skip_inline()
