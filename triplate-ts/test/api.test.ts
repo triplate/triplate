@@ -188,5 +188,69 @@ describe('API behaviour', () => {
       expect(() => compile(bad)).toThrow(TriplateSyntaxError);
       expect(symbols(bad).map((s) => s.kind)).toEqual(['paramDecl', 'bindingKey', 'pname']);
     });
+
+    describe('loop variables', () => {
+      it('a for loop emits a loopDecl at the item plus a loopRef per body ref, all one scope', () => {
+        const src = '---\nparams { graphIris: pname[] }\n---\n{% for g in graphIris %} FROM ${g} ${g} {% endfor %}';
+        const syms = symbols(src);
+        // The for source is an ordinary parameter reference, not a loop ref.
+        const srcRef = syms.find((s) => s.kind === 'paramRef') as { name: string } | undefined;
+        expect(srcRef?.name).toBe('graphIris');
+        const decls = syms.filter((s) => s.kind === 'loopDecl') as Array<{ name: string; scope: number }>;
+        const refs = syms.filter((s) => s.kind === 'loopRef') as Array<{ name: string; scope: number }>;
+        expect(decls.map((d) => d.name)).toEqual(['g']);
+        expect(refs.map((r) => r.name)).toEqual(['g', 'g']);
+        // Declaration and both references share the one scope id.
+        expect(new Set([decls[0].scope, ...refs.map((r) => r.scope)]).size).toBe(1);
+        // Spans still ascend (the item precedes the source in the header).
+        const offsets = syms.map((s) => s.start);
+        expect(offsets).toEqual([...offsets].sort((a, b) => a - b));
+      });
+
+      it('every loop symbol span slices its own text', () => {
+        const src = '---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g}{% endfor %}';
+        for (const s of symbols(src)) {
+          if (s.kind === 'loopDecl' || s.kind === 'loopRef') {
+            expect(src.slice(s.start, s.end)).toBe(s.name);
+          }
+        }
+      });
+
+      it('shadowing — inner refs bind to the inner scope, outer refs to the outer', () => {
+        const src = '---\nparams { a: pname[]\n  b: pname[] }\n---\n{% for g in a %}${g}{% for g in b %}${g}{% endfor %}${g}{% endfor %}';
+        const syms = symbols(src);
+        const decls = syms.filter((s) => s.kind === 'loopDecl') as Array<{ scope: number }>;
+        const refs = syms.filter((s) => s.kind === 'loopRef') as Array<{ scope: number }>;
+        expect(decls).toHaveLength(2);
+        const [outer, inner] = [decls[0].scope, decls[1].scope];
+        expect(outer).not.toBe(inner);
+        // Refs in source order: outer ${g}, inner ${g}, outer ${g}.
+        expect(refs.map((r) => r.scope)).toEqual([outer, inner, outer]);
+      });
+
+      it('a loop variable shadowing a same-named parameter — only in-scope refs become loopRef', () => {
+        const src = '---\nparams { g: pname\n  xs: pname[] }\n---\n${g} {% for g in xs %}${g}{% endfor %} ${g}';
+        const syms = symbols(src);
+        // Two ${g} outside the loop stay paramRefs; the in-loop ${g} is a loopRef.
+        expect((syms.filter((s) => s.kind === 'paramRef') as Array<{ name: string }>).map((s) => s.name)).toEqual(['g', 'xs', 'g']);
+        const refs = syms.filter((s) => s.kind === 'loopRef') as Array<{ name: string; scope: number }>;
+        const decl = syms.find((s) => s.kind === 'loopDecl') as { scope: number };
+        expect(refs.map((r) => r.name)).toEqual(['g']);
+        expect(refs[0].scope).toBe(decl.scope);
+      });
+
+      it('a dotted loop reference marks only the root segment', () => {
+        const src = '---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g.field}{% endfor %}';
+        const refs = symbols(src).filter((s) => s.kind === 'loopRef') as Array<{ name: string }>;
+        expect(refs.map((r) => r.name)).toEqual(['g']);
+      });
+
+      it('lenient mode still collects loop symbols from a malformed template', () => {
+        const bad = '---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g} {% if';
+        const kinds = symbols(bad).map((s) => s.kind);
+        expect(kinds).toContain('loopDecl');
+        expect(kinds).toContain('loopRef');
+      });
+    });
   });
 });

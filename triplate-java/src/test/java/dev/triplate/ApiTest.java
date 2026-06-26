@@ -4,6 +4,8 @@ import dev.triplate.Ast.BindingKeySym;
 import dev.triplate.Ast.CommentSym;
 import dev.triplate.Ast.IriSym;
 import dev.triplate.Ast.LiteralSym;
+import dev.triplate.Ast.LoopDeclSym;
+import dev.triplate.Ast.LoopRefSym;
 import dev.triplate.Ast.ParamDeclSym;
 import dev.triplate.Ast.ParamRefSym;
 import dev.triplate.Ast.PnameSym;
@@ -231,5 +233,90 @@ class ApiTest {
     assertTrue(syms.get(0) instanceof ParamDeclSym);
     assertTrue(syms.get(1) instanceof BindingKeySym);
     assertTrue(syms.get(2) instanceof PnameSym);
+  }
+
+  private static List<LoopDeclSym> loopDecls(List<TemplateSymbol> syms) {
+    return syms.stream().filter(s -> s instanceof LoopDeclSym).map(s -> (LoopDeclSym) s).toList();
+  }
+
+  private static List<LoopRefSym> loopRefs(List<TemplateSymbol> syms) {
+    return syms.stream().filter(s -> s instanceof LoopRefSym).map(s -> (LoopRefSym) s).toList();
+  }
+
+  @Test
+  void forLoopEmitsLoopDeclAndLoopRefsInOneScope() {
+    String src = "---\nparams { graphIris: pname[] }\n---\n{% for g in graphIris %} FROM ${g} ${g} {% endfor %}";
+    List<TemplateSymbol> syms = Triplate.symbols(src);
+    // The for source is an ordinary parameter reference, not a loop ref.
+    assertEquals(
+        List.of("graphIris"),
+        syms.stream().filter(s -> s instanceof ParamRefSym).map(s -> ((ParamRefSym) s).name()).toList());
+    List<LoopDeclSym> decls = loopDecls(syms);
+    List<LoopRefSym> refs = loopRefs(syms);
+    assertEquals(List.of("g"), decls.stream().map(LoopDeclSym::name).toList());
+    assertEquals(List.of("g", "g"), refs.stream().map(LoopRefSym::name).toList());
+    // Declaration and both references share the one scope id.
+    Set<Integer> ids = new java.util.HashSet<>();
+    ids.add(decls.get(0).scope());
+    refs.forEach(r -> ids.add(r.scope()));
+    assertEquals(1, ids.size());
+    // Spans still ascend (the item precedes the source in the header).
+    int prev = -1;
+    for (TemplateSymbol s : syms) {
+      assertTrue(s.start() >= prev, "symbols must be in ascending source order");
+      prev = s.start();
+    }
+  }
+
+  @Test
+  void loopSymbolSpansSliceTheirOwnText() {
+    String src = "---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g}{% endfor %}";
+    for (TemplateSymbol s : Triplate.symbols(src)) {
+      if (s instanceof LoopDeclSym d) assertEquals(d.name(), src.substring(d.start(), d.end()));
+      else if (s instanceof LoopRefSym r) assertEquals(r.name(), src.substring(r.start(), r.end()));
+    }
+  }
+
+  @Test
+  void loopShadowingBindsRefsToTheirOwnScope() {
+    String src =
+        "---\nparams { a: pname[]\n  b: pname[] }\n---\n"
+            + "{% for g in a %}${g}{% for g in b %}${g}{% endfor %}${g}{% endfor %}";
+    List<TemplateSymbol> syms = Triplate.symbols(src);
+    List<LoopDeclSym> decls = loopDecls(syms);
+    assertEquals(2, decls.size());
+    int outer = decls.get(0).scope();
+    int inner = decls.get(1).scope();
+    assertTrue(outer != inner);
+    // Refs in source order: outer ${g}, inner ${g}, outer ${g}.
+    assertEquals(
+        List.of(outer, inner, outer), loopRefs(syms).stream().map(LoopRefSym::scope).toList());
+  }
+
+  @Test
+  void loopVariableShadowsSameNamedParameter() {
+    String src = "---\nparams { g: pname\n  xs: pname[] }\n---\n${g} {% for g in xs %}${g}{% endfor %} ${g}";
+    List<TemplateSymbol> syms = Triplate.symbols(src);
+    // Two ${g} outside the loop stay paramRefs; the in-loop ${g} is a loopRef.
+    assertEquals(
+        List.of("g", "xs", "g"),
+        syms.stream().filter(s -> s instanceof ParamRefSym).map(s -> ((ParamRefSym) s).name()).toList());
+    List<LoopRefSym> refs = loopRefs(syms);
+    assertEquals(List.of("g"), refs.stream().map(LoopRefSym::name).toList());
+    assertEquals(loopDecls(syms).get(0).scope(), refs.get(0).scope());
+  }
+
+  @Test
+  void dottedLoopReferenceMarksOnlyTheRoot() {
+    String src = "---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g.field}{% endfor %}";
+    assertEquals(List.of("g"), loopRefs(Triplate.symbols(src)).stream().map(LoopRefSym::name).toList());
+  }
+
+  @Test
+  void moduleSymbolsCollectsLoopSymbolsOnMalformedTemplate() {
+    String bad = "---\nparams { xs: pname[] }\n---\n{% for g in xs %}${g} {% if";
+    List<TemplateSymbol> syms = Triplate.symbols(bad);
+    assertTrue(syms.stream().anyMatch(s -> s instanceof LoopDeclSym));
+    assertTrue(syms.stream().anyMatch(s -> s instanceof LoopRefSym));
   }
 }

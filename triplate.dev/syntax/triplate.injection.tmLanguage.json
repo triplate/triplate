@@ -17,9 +17,9 @@
       "end": "^---[ \\t]*$",
       "patterns": [
         { "match": "#.*$", "name": "comment.line.number-sign.triplate" },
-        { "match": "\\b(params|example)\\b", "name": "keyword.control.triplate" },
+        { "match": "(?i)\\b(params|example)\\b", "name": "keyword.control.triplate" },
         { "match": "(?i)\\b(iri|pname|string|int|decimal|double|bool|date|dateTime|time|literal|term|raw)\\b", "name": "support.type.triplate" },
-        { "match": "\\b(optional|min|max)\\b", "name": "keyword.other.triplate" },
+        { "match": "(?i)\\b(optional|min|max)\\b", "name": "keyword.other.triplate" },
         { "match": "\"(\\\\.|[^\"\\\\])*\"", "name": "string.quoted.double.triplate" },
         { "match": "<[^<>\"{}|^`\\s]*>", "name": "markup.underline.link.triplate" },
         { "match": "\\b[0-9]+\\b", "name": "constant.numeric.triplate" },

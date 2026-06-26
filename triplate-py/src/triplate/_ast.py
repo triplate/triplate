@@ -185,9 +185,10 @@ class TemplateSymbol:
     and body references that drive IDE features (tooltips, prefix rename,
     parameter rename).
 
-    ``kind`` is one of ``paramDecl``/``paramRef``/``bindingKey``/``pname``/
-    ``iri``/``literal``/``comment``; only the fields relevant to that kind are
-    populated (``name`` for the first three; ``prefix``/``local`` for ``pname``;
+    ``kind`` is one of ``paramDecl``/``paramRef``/``bindingKey``/``loopDecl``/
+    ``loopRef``/``pname``/``iri``/``literal``/``comment``; only the fields
+    relevant to that kind are populated (``name`` for params and loops;
+    ``scope`` for ``loopDecl``/``loopRef``; ``prefix``/``local`` for ``pname``;
     ``value`` for ``iri``/``literal``/``comment``; ``datatype`` optionally for
     ``literal``). ``start`` and ``end`` are absolute, 0-based, end-exclusive
     code-point offsets into the original source.
@@ -200,12 +201,21 @@ class TemplateSymbol:
     and formatters. A ``comment``'s ``value`` is the raw source slice (the
     leading ``#`` through the end of the line), so ``source[start:end] ==
     value``.
+
+    ``loopDecl`` (the ``item`` in a ``{% for item in … %}`` header) and
+    ``loopRef`` (every body reference whose root segment resolves to an in-scope
+    loop variable) are scoped, not name-spaced: each ``loopDecl`` carries a
+    unique ``scope`` id and each ``loopRef`` carries the ``scope`` of the binding
+    it resolves to, so grouping by ``scope`` yields every rename site of one loop
+    variable (handling shadowing that grouping by ``name`` cannot). A reference
+    that does not resolve to a loop variable stays a ``paramRef``.
     """
 
     kind: str
     start: int
     end: int
     name: Optional[str] = None
+    scope: Optional[int] = None
     prefix: Optional[str] = None
     local: Optional[str] = None
     value: Optional[str] = None

@@ -136,11 +136,22 @@ export interface ExampleSet {
  * the overlay (tooltips, prefix rename) and formatters. A `comment`'s `value` is
  * the raw source slice (the leading `#` through the end of the line), so
  * `source.slice(start, end) === value`.
+ *
+ * `loopDecl` (the `item` in a `{% for item in … %}` header) and `loopRef` (every
+ * body reference whose root segment resolves to an in-scope loop variable) are
+ * scoped, not name-spaced: each `loopDecl` carries a unique `scope` id and each
+ * `loopRef` carries the `scope` of the binding it resolves to, so grouping by
+ * `scope` yields every rename site of one loop variable. This handles shadowing
+ * — two `{% for g %}` loops, or a loop `g` over a parameter `g` — which grouping
+ * by `name` cannot. A reference that does not resolve to a loop variable stays a
+ * `paramRef`.
  */
 export type TemplateSymbol =
   | { kind: 'paramDecl'; name: string; start: number; end: number }
   | { kind: 'paramRef'; name: string; start: number; end: number }
   | { kind: 'bindingKey'; name: string; start: number; end: number }
+  | { kind: 'loopDecl'; name: string; scope: number; start: number; end: number }
+  | { kind: 'loopRef'; name: string; scope: number; start: number; end: number }
   | { kind: 'pname'; prefix: string; local: string; start: number; end: number }
   | { kind: 'iri'; value: string; start: number; end: number }
   | { kind: 'literal'; value: string; datatype?: string; start: number; end: number }
