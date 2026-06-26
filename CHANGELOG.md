@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/triplate/triplate/compare/v0.5.2...v0.6.0) (2026-06-26)
+
+
+### Features
+
+* Introduce loop variable support with LoopDeclSym and LoopRefSym in AST and Lexer ([54fcb60](https://github.com/triplate/triplate/commit/54fcb6031c89fa7a27efc5fa0de2f30bcc8421ba))
+* Introduce loop variable support with LoopDeclSym and LoopRefSym… ([3d2bacc](https://github.com/triplate/triplate/commit/3d2bacced46e4800b426e4473571a3eb3e36ee71))
+
 ## [0.5.2](https://github.com/triplate/triplate/compare/v0.5.1...v0.5.2) (2026-06-16)
 
 
