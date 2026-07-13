@@ -10,11 +10,11 @@
     "test:syntax": "node syntax/test/grammar.test.mjs"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.32.0",
-    "astro": "^5.5.0"
+    "@astrojs/starlight": "^0.41.3",
+    "astro": "^7.0.7"
   },
   "devDependencies": {
     "vscode-oniguruma": "^2.0.1",
-    "vscode-textmate": "^9.2.0"
+    "vscode-textmate": "^9.3.2"
   }
 }

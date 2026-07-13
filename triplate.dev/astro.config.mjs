@@ -15,10 +15,9 @@ const triplateInjection = JSON.parse(
 );
 
 export default defineConfig({
-  // GitHub Pages project site for now. Once the triplate.dev custom domain is
-  // wired up: site: 'https://triplate.dev' and remove `base`.
-  site: 'https://triplate.github.io',
-  base: '/triplate',
+  // Served from the triplate.dev custom domain, so the site lives at the root
+  // and needs no `base` prefix.
+  site: 'https://triplate.dev',
   fonts: [{
     provider: fontProviders.fontsource(),
     name: "Noto Sans",
