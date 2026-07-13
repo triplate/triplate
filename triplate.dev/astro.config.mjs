@@ -49,9 +49,9 @@ export default defineConfig({
           ],
         },
       },
-      social: {
-        github: 'https://github.com/triplate/triplate',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/triplate/triplate' },
+      ],
       sidebar: [
         {
           label: 'Getting started',
