@@ -5,7 +5,9 @@
  * heading. The element keeps Starlight's `_top` id so in-page anchors work.
  */
 const route = Astro.locals.starlightRoute;
-const isHome = route.slug === '';
+// Starlight ≥0.34 deprecated `route.slug` (now `undefined`); the home page is
+// identified by an empty `route.id`.
+const isHome = route.id === '';
 const title = route.entry.data.title;
 ---
 
