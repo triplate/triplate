@@ -3,12 +3,14 @@ title: Specification (v0.3)
 description: The Triplate language specification — host-agnostic templating for SPARQL, Turtle, TriG and N-Triples.
 ---
 
-:::note[Document status]
-- **Version:** 0.4
-- **Status:** Draft — the language surface may still change before 1.0.
-- **Date:** 2026-06-15
-- **Authors:** Sebastian Faubel; Claude Code
-:::
+| | |
+|---|---|
+| **Authors:** | Sebastian Faubel using claude.ai |
+| **Version:** | 0.4 |
+| **Status:** | Draft — the language surface may still change before 1.0. |
+| **Date:** | 2026-06-15 |
+
+## Introduction
 
 Triplate is a templating language for RDF query and data languages. A template
 declares its inputs in a mandatory `---` frontmatter header and uses `${ }`
@@ -25,7 +27,7 @@ the executable conformance suite is in
 Every conforming implementation must produce **byte-identical** output for the
 fixtures and raise the named error for every must-throw case.
 
-## 1. Host-agnostic by design
+## 1. Host-Agnostic by Design
 
 Triplate's only special tokens are `${`, `$"`, `$<`, and `{%`. None is a valid
 token in SPARQL, Turtle, TriG, or N-Triples, so fail-fast holds in all of them.
@@ -48,7 +50,7 @@ Keywords and type names fold ASCII case (`{% FOR %}`, `iri`/`IRI`); variable
 names, IRIs, string content, language tags, and the `true`/`false` term
 literals (RDF term syntax, §8) are case-sensitive.
 
-## 2. The header — `---` frontmatter (mandatory)
+## 2. The Frontmatter
 
 A template begins with a `---`-delimited frontmatter block. The whole block,
 through the closing `---` and its trailing newline, is **consumed and never
@@ -101,6 +103,25 @@ SELECT ?s WHERE { … }
 The leading `---` is also a positive **"this is a Triplate template"** marker
 for tooling.
 
+### 2.1 Example Blocks
+
+```
+example dbpedia "DBpedia — people" {
+  service: <http://dbpedia.org/sparql>
+  classes: [ foaf:Person, foaf:Organization ]
+  limit:   10
+}
+```
+
+`example <id> ["<description>"] { … }` — `<id>` is a unique slug; the
+description is optional. Bindings use `name: value`, where values are RDF term
+syntax (`<…>`, `prefix:local`, `"…"`/`@lang`/`^^dt`, numbers, bools, `[ … ]`,
+`{ … }`) and are validated against `params`. Example sets are
+**development/preview fixtures, not production defaults**: `render(context)`
+still requires real values, while `previewExample(id)` renders with a set.
+Prefixed names in examples are resolved against the template's `PREFIX`
+declarations for preview.
+
 ## 3. Values — `${ … }`
 
 A reference is `${ path }`, where `path` is `Ident('.'Ident)*`. Its type comes
@@ -115,7 +136,7 @@ differently by **construct**:
 
 `raw` values are inserted verbatim in all three.
 
-### Spread — `${ ... path }`
+### 3.1 Spread — `${ ... path }`
 
 ```
 VALUES ?g { ${...graphs} }                 →  VALUES ?g { <…a> <…b> <…c> }
@@ -202,26 +223,7 @@ string is validated as an absolute IRI — so even `raw` cannot break out.
 `not` negates. There are no comparison operators. `{% if %}` is what makes
 `optional` parameters consumable.
 
-## 8. Examples — `example` (optional, in the frontmatter)
-
-```
-example dbpedia "DBpedia — people" {
-  service: <http://dbpedia.org/sparql>
-  classes: [ foaf:Person, foaf:Organization ]
-  limit:   10
-}
-```
-
-`example <id> ["<description>"] { … }` — `<id>` is a unique slug; the
-description is optional. Bindings use `name: value`, where values are RDF term
-syntax (`<…>`, `prefix:local`, `"…"`/`@lang`/`^^dt`, numbers, bools, `[ … ]`,
-`{ … }`) and are validated against `params`. Example sets are
-**development/preview fixtures, not production defaults**: `render(context)`
-still requires real values, while `previewExample(id)` renders with a set.
-Prefixed names in examples are resolved against the template's `PREFIX`
-declarations for preview.
-
-## 9. API
+## 8. API
 
 ```
 compile(template)                 -> CompiledTemplate     (parse once)
@@ -233,6 +235,35 @@ render(template, context)         -> string               (one-shot)
 Errors: `TriplateError` → `TriplateSyntaxError` (compile),
 `TriplateBindingError`, `TriplateTypeError`, `TriplateCardinalityError`
 (render), with line/column where applicable.
+
+## 9. Security Model
+
+Every value is declared with an RDF type in the `---` frontmatter and validated + escaped when rendered. A value that does not satisfy its type **throws**
+instead of being emitted:
+
+- `iri` rejects anything that is not a syntactically valid absolute IRI, so a
+  value like `http://x/> . } DROP GRAPH <g` throws instead of breaking out of
+  `<…>`.
+- `string` and `$"…"` content escape `\`, `"`, newlines, CR, tab.
+- Numeric/`bool`/date types accept only matching host values and emit canonical
+  forms; `"10"` is not an `int`.
+- `pname` enforces a conservative prefixed-name subset and never injects
+  `PREFIX` declarations.
+- `$<…>` percent-encodes each hole and validates the assembled IRI as absolute.
+
+### 9.1 Up-front validation & fail-fast
+
+The render context is validated against the header before any output is
+produced. And the `${ }` / `$"…"` / `$<…>` / `{% … %}` syntax and the leading
+`---` are invalid in SPARQL/Turtle/N-Triples, so a template that reaches a
+parser unrendered fails loudly. The conformance suite checks both directions
+with a real SPARQL parser.
+
+### 9.2 The `raw` type
+
+`raw` inserts a value verbatim, unescaped. It is the single, **auditable**
+unsafe path — declared in the frontmatter, so a reviewer greps one place. Never
+feed user input into a `raw` parameter.
 
 ## 10. Deferred
 

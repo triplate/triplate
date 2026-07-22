@@ -1,6 +1,38 @@
 :root {
   --font-noto-serif: "Noto Serif", sans-serif;
   --sl-content-width: 60rem;
+  /* Overall page width. Header content, sidebar and main content are all
+     centered within this container (VS Code docs-style layout). */
+  --tl-layout-max-width: 90rem;
+}
+
+/* --- Centered layout -------------------------------------------------- */
+
+/* Cap and center the page column (sidebar offset + content + TOC). */
+.page {
+  width: 100%;
+  max-width: var(--tl-layout-max-width);
+  margin-inline: auto;
+}
+
+/* The fixed top bar keeps its full-width background and border; its inner
+   nav content is constrained to the same centered container. */
+header.header>.header {
+  max-width: calc(var(--tl-layout-max-width) - 2 * var(--sl-nav-pad-x));
+  margin-inline: auto;
+}
+
+header.header {
+  background-color: var(--sl-color-bg);
+  border-bottom: 1px solid var(--sl-color-hairline-shade) !important;
+}
+
+/* The sidebar pane is position: fixed, so it must follow the centered
+   container's left edge explicitly. */
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    inset-inline-start: max(0px, calc((100% - var(--tl-layout-max-width)) / 2));
+  }
 }
 
 :root[data-theme="light"] {

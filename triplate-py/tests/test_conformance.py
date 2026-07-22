@@ -16,7 +16,7 @@ def _cases():
             yield pytest.param(case, id=f"{file.stem}: {case['name']}")
 
 
-@pytest.mark.parametrize("case", _cases())
+@pytest.mark.parametrize("case", list(_cases()))
 def test_conformance(case):
     if "error" in case:
         with pytest.raises(TriplateError) as exc_info:

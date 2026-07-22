@@ -3,6 +3,8 @@ title: API overview
 description: The compile / render model, binding semantics and error hierarchy shared by all implementations.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Every implementation exposes the same small surface: parse a template once into
 a `CompiledTemplate`, then render it many times against a context. The
 per-language pages give exact signatures, accepted value types, custom-type
@@ -12,7 +14,9 @@ registration and error classes:
 - [Python](./python/)
 - [Java](./java/)
 
-For task-oriented, copy-pasteable templates see the [Examples](../../language/comments/).
+For task-oriented, copy-pasteable templates see the examples for
+[Query](/examples/query/), [Data](/examples/data/) and
+[Publishing](/examples/publishing/).
 
 ## The model
 
@@ -29,17 +33,47 @@ render a named example set for development previews (`previewExample` /
 `preview_example`), and can build a validated context from raw string inputs
 (`contextFromStrings` / `context_from_strings`).
 
-| | TypeScript | Python | Java |
-|---|---|---|---|
-| Compile | `compile(str)` | `compile(str)` | `Triplate.compile(str)` |
-| Detect template | `isTemplate(str)` | `is_template(str)` | `Triplate.isTemplate(str)` |
-| One-shot render | `render(str, ctx?)` | `render(str, ctx?, **kw)` | `Triplate.render(str, map?)` |
-| Render compiled | `tmpl.render(ctx?)` | `tmpl.render(ctx?, **kw)` | `tmpl.render(map?)` |
-| Schema / examples | `tmpl.schema` / `.examples` | `tmpl.schema` / `.examples` | `tmpl.schema()` / `.examples()` |
-| Preview example | `tmpl.previewExample(id)` | `tmpl.preview_example(id)` | `tmpl.previewExample(id)` |
-| Context from strings | `tmpl.contextFromStrings(map)` | `tmpl.context_from_strings(map)` | `tmpl.contextFromStrings(map)` |
-| Frontmatter prefixes | `tmpl.frontmatterPrefixes()` | `tmpl.frontmatter_prefixes()` | `tmpl.frontmatterPrefixes()` |
-| Register custom type | `registerType(name, fn)` | `register_type(name, fn)` | `TypeRegistry.registerType(name, fn)` |
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    | Operation | Signature |
+    |---|---|
+    | Compile | `compile(str)` |
+    | Detect template | `isTemplate(str)` |
+    | One-shot render | `render(str, ctx?)` |
+    | Render compiled | `tmpl.render(ctx?)` |
+    | Schema / examples | `tmpl.schema` / `tmpl.examples` |
+    | Preview example | `tmpl.previewExample(id)` |
+    | Context from strings | `tmpl.contextFromStrings(map)` |
+    | Frontmatter prefixes | `tmpl.frontmatterPrefixes()` |
+    | Register custom type | `registerType(name, fn)` |
+  </TabItem>
+  <TabItem label="Python">
+    | Operation | Signature |
+    |---|---|
+    | Compile | `compile(str)` |
+    | Detect template | `is_template(str)` |
+    | One-shot render | `render(str, ctx?, **kw)` |
+    | Render compiled | `tmpl.render(ctx?, **kw)` |
+    | Schema / examples | `tmpl.schema` / `tmpl.examples` |
+    | Preview example | `tmpl.preview_example(id)` |
+    | Context from strings | `tmpl.context_from_strings(map)` |
+    | Frontmatter prefixes | `tmpl.frontmatter_prefixes()` |
+    | Register custom type | `register_type(name, fn)` |
+  </TabItem>
+  <TabItem label="Java">
+    | Operation | Signature |
+    |---|---|
+    | Compile | `Triplate.compile(str)` |
+    | Detect template | `Triplate.isTemplate(str)` |
+    | One-shot render | `Triplate.render(str, map?)` |
+    | Render compiled | `tmpl.render(map?)` |
+    | Schema / examples | `tmpl.schema()` / `tmpl.examples()` |
+    | Preview example | `tmpl.previewExample(id)` |
+    | Context from strings | `tmpl.contextFromStrings(map)` |
+    | Frontmatter prefixes | `tmpl.frontmatterPrefixes()` |
+    | Register custom type | `TypeRegistry.registerType(name, fn)` |
+  </TabItem>
+</Tabs>
 
 `isTemplate` returns `true` when the text opens with a `---` frontmatter header —
 the positive detection marker that complements fail-fast (an unprocessed template

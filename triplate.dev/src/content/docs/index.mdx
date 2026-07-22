@@ -11,6 +11,21 @@ and conditionals. Values are validated and escaped per their declared RDF type,
 so rendered output is injection-safe by construction, and the syntax is invalid
 in the host language, so an unprocessed template fails fast.
 
+<CardGrid>
+  <Card title="SPARQL Query" icon="magnifier">
+    Template SPARQL queries for backend applications and AI agents — typed,
+    validated parameters instead of string concatenation.
+    [Query examples →](/examples/query/)
+  </Card>
+  <Card title="RDF Data" icon="database">
+    Stamp author and provenance metadata onto RDF artefacts, or generate
+    synthetic Turtle/TriG datasets from plain records.
+    [Data examples →](/examples/data/)
+  </Card>
+</CardGrid>
+
+## Example
+
 ```sparql
 ---
 params {
@@ -18,8 +33,8 @@ params {
   classes: iri[] min 1
   limit:   int optional
 }
-example demo "DBpedia people & orgs" {
-  service: <http://dbpedia.org/sparql>
+example demo "DBpedia" {
+  service: "http://dbpedia.org/sparql"
   classes: [ foaf:Person, foaf:Organization ]
   limit:   10
 }

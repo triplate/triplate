@@ -18,6 +18,10 @@ export default defineConfig({
   // Served from the triplate.dev custom domain, so the site lives at the root
   // and needs no `base` prefix.
   site: 'https://triplate.dev',
+  // The old cookbook page was split into the use-case example pages.
+  redirects: {
+    '/language/comments': '/examples/query',
+  },
   fonts: [{
     provider: fontProviders.fontsource(),
     name: "Noto Sans",
@@ -58,31 +62,31 @@ export default defineConfig({
           items: [
             { label: 'Introduction', slug: 'index' },
             { label: 'Installation', slug: 'installation' },
+            { label: 'Specification', slug: 'specification' },
           ],
         },
         {
           label: 'Language',
           items: [
-            { label: 'Header', slug: 'language/substitutions' },
+            { label: 'Frontmatter', slug: 'language/frontmatter' },
             { label: 'Loops & Conditionals', slug: 'language/loops' },
-            { label: 'Variables', slug: 'language/strings' },
-            { label: 'Examples', slug: 'language/comments' },
+            { label: 'Minting', slug: 'language/minting' },
           ],
         },
         {
-          label: 'Reference',
+          label: 'Examples',
           items: [
-            { label: 'Specification', slug: 'specification' },
-            {
-              label: 'API',
-              items: [
-                { label: 'Overview', slug: 'reference/api' },
-                { label: 'TypeScript', slug: 'reference/api/typescript' },
-                { label: 'Python', slug: 'reference/api/python' },
-                { label: 'Java', slug: 'reference/api/java' },
-              ],
-            },
-            { label: 'Security Model', slug: 'reference/security' },
+            { label: 'SPARQL Query', slug: 'examples/query' },
+            { label: 'RDF Data', slug: 'examples/data' },
+          ],
+        },
+        {
+          label: 'API',
+          items: [
+            { label: 'Overview', slug: 'api' },
+            { label: 'TypeScript', slug: 'api/typescript' },
+            { label: 'Python', slug: 'api/python' },
+            { label: 'Java', slug: 'api/java' },
           ],
         },
       ],

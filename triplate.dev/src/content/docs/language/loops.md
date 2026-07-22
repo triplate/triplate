@@ -1,5 +1,5 @@
 ---
-title: Loops & conditionals
+title: Loops & Conditionals
 description: "{% for %} iterates declared arrays; {% if %} consumes optional params."
 ---
 
