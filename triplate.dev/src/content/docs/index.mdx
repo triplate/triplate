@@ -98,3 +98,34 @@ LIMIT 10
     byte-identical by a shared conformance suite.
   </Card>
 </CardGrid>
+
+## Why not Jinja?
+
+General-purpose engines treat SPARQL queries or RDF documents as opaque text; Triplate understands the
+RDF term model it emits.
+
+| | Triplate | Jinja2 | Mustache | Jena PSS¹ |
+|---|:---:|:---:|:---:|:---:|
+| RDF-typed params (`iri`, `pname`, `literal(<dt>)`, …) | ● | ○ | ○ | ◐² |
+| SPARQL/Turtle-aware escaping (injection-safe) | ● | ○³ | ○³ | ◐ |
+| Whole context validated before rendering | ● | ○ | ○ | ○ |
+| IRI minting — percent-encoded, validated absolute | ● | ○ | ○ | ○ |
+| `@lang` / `^^datatype` literal construction | ● | ○ | ○ | ◐² |
+| Dynamic query shape (loops with `join`, `if`) | ● | ● | ◐ | ○ |
+| Unrendered template fails fast at the endpoint | ● | ○ | ○ | — |
+| Byte-identical across TypeScript, Python, Java | ● | ◐⁴ | ◐⁴ | ○ |
+
+<div style="display: flex; justify-content: flex-end; gap: 2em">
+<span>● full support</span>
+<span>◐ partial</span>
+<span>○ none</span>
+<span>— not applicable</span>
+</div>
+
+¹ Apache Jena `ParameterizedSparqlString` (Java-only, SPARQL-only).
+
+² Code-side via Jena objects, not declared in the template.
+
+³ Autoescaping targets HTML, not SPARQL.
+
+⁴ Ports exist (Nunjucks, Jinjava, …) but diverge in semantics.
