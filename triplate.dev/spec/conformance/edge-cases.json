@@ -1,32 +1,5 @@
 [
   {
-    "name": "directives in comments are inert",
-    "template": "---\nparams { o: iri }\n---\n# uses ${o} and {% for x in y %}\nSELECT * WHERE { ?s ?p ${o} }",
-    "context": {
-      "o": "http://example.org/o"
-    },
-    "expected": "# uses ${o} and {% for x in y %}\nSELECT * WHERE { ?s ?p <http://example.org/o> }",
-    "roundtrip": true
-  },
-  {
-    "name": "hash inside string is not a comment",
-    "template": "---\nparams { x: iri }\n---\nSELECT * WHERE { ?s ?p \"a#b\" . ?s ?q ${x} }",
-    "context": {
-      "x": "http://example.org/x"
-    },
-    "expected": "SELECT * WHERE { ?s ?p \"a#b\" . ?s ?q <http://example.org/x> }",
-    "roundtrip": true
-  },
-  {
-    "name": "hash inside IRI is not a comment",
-    "template": "---\nparams { x: iri }\n---\nSELECT * WHERE { ?s ?p <http://example.org/x#frag> . ?s ?q ${x} }",
-    "context": {
-      "x": "http://example.org/x"
-    },
-    "expected": "SELECT * WHERE { ?s ?p <http://example.org/x#frag> . ?s ?q <http://example.org/x> }",
-    "roundtrip": true
-  },
-  {
     "name": "percent-encoding in IRI is protected",
     "template": "---\nparams { }\n---\nSELECT * WHERE { ?s ?p <http://example.org/caf%C3%A9> }",
     "context": {},
@@ -58,5 +31,21 @@
     },
     "expected": "SELECT * WHERE { ?s ?p ?x FILTER(?x < 10) }",
     "roundtrip": true
+  },
+  {
+    "name": "hash is plain text, not a comment",
+    "template": "---\nparams { title: raw }\n---\n# ${title}\n",
+    "context": {
+      "title": "My Title"
+    },
+    "expected": "# My Title\n"
+  },
+  {
+    "name": "directive after hash is interpreted, not inert",
+    "template": "---\nparams { xs: iri[] min 1 }\n---\n# {% for x in xs %}${x}{% endfor %}",
+    "context": {
+      "xs": ["http://example.org/a"]
+    },
+    "expected": "# <http://example.org/a>"
   }
 ]

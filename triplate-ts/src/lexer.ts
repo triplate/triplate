@@ -121,7 +121,6 @@ class Lexer {
       else if (ch === '$' && this.peek(1) === '"') this.lexInterpString();
       else if (ch === '$' && this.peek(1) === '<') this.lexIriTemplate();
       else if (ch === '{' && this.peek(1) === '%') this.lexTag();
-      else if (ch === '#') this.lexCommentAsText();
       else if (ch === '"' || ch === "'") this.enterString(ch);
       else if (ch === '<') this.tryIriRef();
       else this.takeText(1);
@@ -177,10 +176,6 @@ class Lexer {
       this.stringDelim = quote;
       this.takeText(1);
     }
-  }
-  private lexCommentAsText(): void {
-    const end = this.s.indexOf('\n', this.pos);
-    this.takeText((end < 0 ? this.s.length : end) - this.pos);
   }
   private tryIriRef(): void {
     let i = this.pos + 1;
@@ -552,18 +547,12 @@ class Lexer {
     if (this.peek() === '\n') this.advance(1);
   }
 
-  /** Whitespace (incl. newlines), commas and `#` comments between frontmatter items. */
+  /** Whitespace (incl. newlines) and commas between frontmatter items. */
   private skipFront(): void {
     for (; ;) {
       const c = this.peek();
       if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === ',') {
         this.advance(1);
-        continue;
-      }
-      if (c === '#') {
-        const start = this.pos;
-        while (this.peek() !== '' && this.peek() !== '\n') this.advance(1);
-        this.symbols.push({ kind: 'comment', value: this.s.slice(start, this.pos), start, end: this.pos });
         continue;
       }
       break;

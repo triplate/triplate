@@ -1,4 +1,4 @@
-(* Triplate template grammar, v0.3.
+(* Triplate template grammar, v0.7.
 
    Host-agnostic: works over SPARQL, Turtle, TriG and N-Triples. The special
    tokens ($ { , $" , $< , {% ) and the leading --- fence are invalid in those
@@ -14,9 +14,9 @@ Template     ::= Frontmatter Body
 
 (* ---- Frontmatter header (mandatory, delimited by ---) ----
    The whole block, through the closing --- and its newline, is consumed and
-   never emitted. Inside, # comments and whitespace are ignored; sections are
-   brace-delimited so parameter names are unrestricted. *)
-Frontmatter  ::= '---' EOL ( Comment | WS | Section )* '---' EOL
+   never emitted. Inside, whitespace is ignored; sections are brace-delimited
+   so parameter names are unrestricted. *)
+Frontmatter  ::= '---' EOL ( WS | Section )* '---' EOL
 Section      ::= 'params' '{' ParamDecl* '}'
                | 'example' Slug ( WS String )? '{' Binding* '}'
 ParamDecl    ::= Ident ':' TypeExpr
@@ -36,11 +36,10 @@ ExValue      ::= IRIREF | PrefixedName | String ( '@' LangTag | '^^' DatatypeRef
 DatatypeRef  ::= IRIREF | PrefixedName
 
 (* ---- Body ---- *)
-Body         ::= ( Comment | IriRef | StringLit | Text
+Body         ::= ( IriRef | StringLit | Text
                  | Value | InterpStr | IriTemplate | ForLoop | IfBlock )*
 
-(* Inert regions: a $ or { inside any of these is literal text. *)
-Comment      ::= '#' ( AnyChar - LineEnd )*
+(* Inert regions: a $ or { inside either of these is literal text. *)
 IriRef       ::= '<' ( AnyChar - ( WSChar | '<' | '>' | '"' ) )* '>'
 StringLit    ::= '"' ( StrChar | StrEscape )* '"'
                | "'" ( SQChar | StrEscape )* "'"

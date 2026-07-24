@@ -1,14 +1,14 @@
 ---
-title: Specification (v0.3)
+title: Specification (v0.7)
 description: The Triplate language specification — host-agnostic templating for SPARQL, Turtle, TriG and N-Triples.
 ---
 
 | | |
 |---|---|
 | **Authors:** | Sebastian Faubel using claude.ai |
-| **Version:** | 0.4 |
+| **Version:** | 0.7 |
 | **Status:** | Draft — the language surface may still change before 1.0. |
-| **Date:** | 2026-06-15 |
+| **Date:** | 2026-07-24 |
 
 ## Introduction
 
@@ -32,10 +32,9 @@ fixtures and raise the named error for every must-throw case.
 Triplate's only special tokens are `${`, `$"`, `$<`, and `{%`. None is a valid
 token in SPARQL, Turtle, TriG, or N-Triples, so fail-fast holds in all of them.
 A bare `$name` (a SPARQL variable) and anything `@…` (language tags, Turtle
-`@prefix`/`@base`) pass through untouched. Three regions are **inert** — a `$`
+`@prefix`/`@base`) pass through untouched. Two regions are **inert** — a `$`
 or `{` inside them is literal text:
 
-- **Comments** — `#` to end of line.
 - **IRI references** — a complete `<…>` (protects percent-encodings like
   `%C3%A9`). Build IRIs from variables with `$<…>` (§5).
 - **String literals** — `"…"`, `'…'`, `"""…"""`, `'''…'''`. Build strings from
@@ -54,7 +53,7 @@ literals (RDF term syntax, §8) are case-sensitive.
 
 A template begins with a `---`-delimited frontmatter block. The whole block,
 through the closing `---` and its trailing newline, is **consumed and never
-emitted** — so nothing in the header (comments, blank lines) leaks into the
+emitted** — so nothing in the header (blank lines included) leaks into the
 output. Sections are **brace-delimited**, which keeps parameter names
 unrestricted.
 
@@ -69,7 +68,6 @@ params {
   limit:    int
 }
 
-# a comment inside the frontmatter is metadata (never emitted)
 example dbpedia "DBpedia — people" {
   service: <http://dbpedia.org/sparql>
   classes: [ foaf:Person, foaf:Organization ]
@@ -81,10 +79,8 @@ SELECT ?s WHERE { … }
 ```
 
 - The frontmatter has a mandatory `params { … }` section and zero or more
-  `example … { … }` sections (§8). `#` comments and whitespace inside `---`
-  do not affect parsing or output; comments are retained as positioned symbols
-  so tooling (e.g. formatters) can preserve and re-indent them. Both
-  declarations and bindings use `name: …`.
+  `example … { … }` sections (§8). Whitespace inside `---` does not affect
+  parsing or output. Both declarations and bindings use `name: …`.
 - **Types**: `iri`, `pname`, `string`, `int`, `decimal`, `double`,
   `bool`, `date`, `dateTime`, `time`, `literal(<dt>)`, `term`, `raw`.
 - **Modifiers** (fixed order): `<type> ['[]'] ['optional'] ['min' N] ['max' N]`.

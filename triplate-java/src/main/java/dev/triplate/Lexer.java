@@ -158,7 +158,6 @@ final class Lexer {
       else if (ch == '$' && peek(1) == '"') lexInterpString();
       else if (ch == '$' && peek(1) == '<') lexIriTemplate();
       else if (ch == '{' && peek(1) == '%') lexTag();
-      else if (ch == '#') lexCommentAsText();
       else if (ch == '"' || ch == '\'') enterString(ch);
       else if (ch == '<') tryIriRef();
       else takeText(1);
@@ -240,11 +239,6 @@ final class Lexer {
       stringDelim = String.valueOf(quote);
       takeText(1);
     }
-  }
-
-  private void lexCommentAsText() {
-    int end = s.indexOf('\n', pos);
-    takeText((end < 0 ? s.length() : end) - pos);
   }
 
   private void tryIriRef() {
@@ -688,12 +682,6 @@ final class Lexer {
       char c = peek();
       if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == ',') {
         advance(1);
-        continue;
-      }
-      if (c == '#') {
-        int start = pos;
-        while (peek() != '\0' && peek() != '\n') advance(1);
-        symbols.add(new Ast.CommentSym(s.substring(start, pos), start, pos));
         continue;
       }
       break;

@@ -34,12 +34,10 @@ params {
   datasets: { name: text, description: text, homepage: iri }[]
 }
 ---
-${title}
-========
+# ${title}
 
 {% for d in datasets %}
-${d.name}
----------
+## ${d.name}
 
 ${d.description}
 
@@ -49,18 +47,15 @@ ${d.description}
 ```
 
 ```markdown
-Dataset catalog
-========
+# Dataset catalog
 
-People
----------
+## People
 
 Curated FOAF descriptions of project members.
 
 [Homepage](<https://example.org/data/people>)
 
-Organizations
----------
+## Organizations
 
 Legal entities referenced by the people dataset.
 
@@ -72,13 +67,6 @@ Note the link target: `homepage` is a plain `iri` parameter. A standalone
 `${…}` of type `iri` serializes as `<…>` — validated as an absolute IRI — and
 Markdown accepts exactly that angle-bracketed form as a link destination, so
 URLs get a real RDF type instead of passing through as text.
-
-:::caution[Why not `# ${title}`?]
-`#` starts a comment in Triplate. Body comments are emitted, but they are
-[inert](/language/strings/#inert-regions) — a `${ }` on a `#` line stays
-literal text. For Markdown headings that contain a substitution, use setext
-headings (`===` / `---` underlines) as above.
-:::
 
 ## A W3C-style ontology documentation page
 
@@ -245,13 +233,12 @@ Rendered with a small people & organizations vocabulary:
 Three details worth noting:
 
 - **Static vs constructed attributes.** Plain `"…"` strings are
-  [inert](/language/strings/#inert-regions), so a static attribute like
+  [inert](/language/minting/#inert-regions), so a static attribute like
   `id="classes"` passes through untouched — but that also means
   `id="${c.id}"` would emit the `${…}` literally. A *constructed* attribute
-  value is exactly what [`$"…"`](/language/strings/) is for: `id=$"${c.id}"`
-  renders `id="Person"`, quotes included and content escaped. It also keeps
-  `#` inside a string (`href=$"#${c.id}"`), where it cannot be mistaken for a
-  comment.
+  value is exactly what [`$"…"`](/language/minting/) is for: `id=$"${c.id}"`
+  renders `id="Person"`, quotes included and content escaped — including a
+  `#` inside a string (`href=$"#${c.id}"`).
 - **Escaping shows up where it matters.** The `&` in the title arrives as
   `&amp;` — `htmltext` values can never inject tags, the injection-safety
   story transposed to HTML.

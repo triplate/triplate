@@ -173,8 +173,7 @@ public final class Ast {
           LoopRefSym,
           PnameSym,
           IriSym,
-          LiteralSym,
-          CommentSym {
+          LiteralSym {
     int start();
 
     int end();
@@ -195,12 +194,6 @@ public final class Ast {
   public record IriSym(String value, int start, int end) implements TemplateSymbol {}
 
   public record LiteralSym(String value, String datatype, int start, int end) implements TemplateSymbol {}
-
-  /**
-   * A frontmatter {@code # …} comment. {@code value} is the raw source slice (the leading {@code #}
-   * through the end of the line), so {@code source.substring(start, end).equals(value)}.
-   */
-  public record CommentSym(String value, int start, int end) implements TemplateSymbol {}
 
   public record CompiledTemplateData(
       Schema schema, List<ExampleSet> examples, List<Node> body, List<TemplateSymbol> symbols) {}

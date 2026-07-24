@@ -25,7 +25,7 @@ describe('API behaviour', () => {
   });
 
   it('frontmatter is stripped — no leakage before the body', () => {
-    const tmpl = compile('---\nparams {\n  c: iri\n}\n# a metadata comment\n---\nSELECT * WHERE { ?s a ${c} }');
+    const tmpl = compile('---\nparams {\n  c: iri\n}\n\n---\nSELECT * WHERE { ?s a ${c} }');
     expect(tmpl.render({ c: 'http://example.org/A' })).toBe('SELECT * WHERE { ?s a <http://example.org/A> }');
   });
 
@@ -164,23 +164,14 @@ describe('API behaviour', () => {
       expect(sites.map((s) => s.kind)).toEqual(['paramDecl', 'bindingKey', 'paramRef', 'paramRef']);
     });
 
-    it('captures frontmatter comments as positioned symbols whose value is the source slice', () => {
-      const src =
-        '---\n' +
-        '# a standalone comment\n' +
-        'params {\n  who: pname  # the subject\n}\n' +
-        '---\n' +
-        '?s a ${who}';
-      const comments = compile(src)
-        .symbols()
-        .filter((s) => s.kind === 'comment') as Array<{ value: string; start: number; end: number }>;
-      expect(comments.map((c) => c.value)).toEqual(['# a standalone comment', '# the subject']);
-      for (const c of comments) expect(src.slice(c.start, c.end)).toBe(c.value);
-      // Body comments stay text, not symbols.
-      expect(compile('---\nparams { x: int }\n---\n# body ${x}').symbols().some((s) => s.kind === 'comment')).toBe(false);
-      // Comments do not disturb ascending source order.
-      const offsets = compile(src).symbols().map((s) => s.start);
-      expect(offsets).toEqual([...offsets].sort((a, b) => a - b));
+    it('`#` is plain text in the body, not a comment — directives after it are live', () => {
+      const tmpl = compile('---\nparams { title: raw }\n---\n# ${title}');
+      expect(tmpl.render({ title: 'My Title' })).toBe('# My Title');
+    });
+
+    it('`#` in the frontmatter is a syntax error, not a comment', () => {
+      const src = '---\nparams { who: pname }\n# a comment\n---\n?s a ${who}';
+      expect(() => compile(src)).toThrow(TriplateSyntaxError);
     });
 
     it('the standalone symbols() is lenient — returns what parsed on a malformed template', () => {

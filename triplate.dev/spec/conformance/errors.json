@@ -175,5 +175,13 @@
     "template": "---\nparams { x: string optional }\n---\n${x}",
     "context": {},
     "error": "TriplateBindingError"
+  },
+  {
+    "name": "hash in frontmatter is a syntax error",
+    "template": "---\nparams { s: iri }\n# note\n---\n?x a ${s}",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "error": "TriplateSyntaxError"
   }
 ]
