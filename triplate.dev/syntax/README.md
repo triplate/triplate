@@ -7,10 +7,14 @@ values, `$"…"` strings, `$<…>` IRI templates, and `{% … %}` directives
 an existing host grammar, so a template gets normal SPARQL highlighting **plus**
 Triplate highlighting.
 
-It injects into `source.sparql` and, matching the language, stays out of `#`
-comments and string literals. A bare `$name` (a SPARQL variable) is left alone.
-This format is understood by VS Code, Sublime Text, and Shiki — so it also
-drives the code blocks on [triplate.dev](https://triplate.dev).
+It injects into `source.sparql` and stays out of the host grammar's own `#`
+comments and string literals, where a `$` or `{` isn't meaningful SPARQL
+highlighting-wise. (Triplate itself no longer treats `#` specially — a body
+`${x}` after a bare `#` is interpolated for real — but for a SPARQL-targeted
+template `#` is still genuine host-language comment syntax, so the injection
+grammar continues to leave it to the host.) A bare `$name` (a SPARQL variable)
+is left alone. This format is understood by VS Code, Sublime Text, and Shiki —
+so it also drives the code blocks on [triplate.dev](https://triplate.dev).
 
 ## Key scopes
 
@@ -53,6 +57,6 @@ npm run test:syntax --workspace triplate.dev
 
 `test/grammar.test.mjs` tokenizes Triplate snippets with `vscode-textmate` +
 `vscode-oniguruma` (the engine VS Code and Shiki use), injecting over a minimal
-`source.sparql` stub, and asserts the expected scopes — including that comments,
-strings, and bare `$name` variables are left untouched. See
+`source.sparql` stub, and asserts the expected scopes — including that host
+comments, strings, and bare `$name` variables are left untouched. See
 [`sample.triplate`](sample.triplate) for a representative template.

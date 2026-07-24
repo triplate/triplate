@@ -16,7 +16,6 @@
       "begin": "\\A---[ \\t]*$",
       "end": "^---[ \\t]*$",
       "patterns": [
-        { "match": "#.*$", "name": "comment.line.number-sign.triplate" },
         { "match": "(?i)\\b(params|example)\\b", "name": "keyword.control.triplate" },
         { "match": "(?i)\\b(iri|pname|string|int|decimal|double|bool|date|dateTime|time|literal|term|raw)\\b", "name": "support.type.triplate" },
         { "match": "(?i)\\b(optional|min|max)\\b", "name": "keyword.other.triplate" },

@@ -155,7 +155,11 @@ check('${ } inside a plain SPARQL string is NOT highlighted', '"text ${x} here"'
 check('percent-encoding inside an IRI is NOT a value', '<http://x/caf%C3%A9>', (t) =>
   !anyTriplate(t),
 );
-check('directives in # comments are NOT highlighted', '# ${x} and {% for c in xs %}', (t) =>
+// Triplate no longer treats `#` specially (the engine now interpolates
+// `${x}`/`{% … %}` after a bare `#` for real), but the *host* SPARQL grammar's
+// own `#` line-comment scope is still real SPARQL syntax, and the injection
+// grammar still stays out of it — same as it stays out of host strings.
+check('directives after a bare # stay inside the host comment scope (not Triplate-highlighted)', '# ${x} and {% for c in xs %}', (t) =>
   !anyTriplate(t),
 );
 

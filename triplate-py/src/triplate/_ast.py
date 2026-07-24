@@ -186,21 +186,19 @@ class TemplateSymbol:
     parameter rename).
 
     ``kind`` is one of ``paramDecl``/``paramRef``/``bindingKey``/``loopDecl``/
-    ``loopRef``/``pname``/``iri``/``literal``/``comment``; only the fields
-    relevant to that kind are populated (``name`` for params and loops;
-    ``scope`` for ``loopDecl``/``loopRef``; ``prefix``/``local`` for ``pname``;
-    ``value`` for ``iri``/``literal``/``comment``; ``datatype`` optionally for
-    ``literal``). ``start`` and ``end`` are absolute, 0-based, end-exclusive
-    code-point offsets into the original source.
+    ``loopRef``/``pname``/``iri``/``literal``; only the fields relevant to that
+    kind are populated (``name`` for params and loops; ``scope`` for
+    ``loopDecl``/``loopRef``; ``prefix``/``local`` for ``pname``; ``value`` for
+    ``iri``/``literal``; ``datatype`` optionally for ``literal``). ``start``
+    and ``end`` are absolute, 0-based, end-exclusive code-point offsets into
+    the original source.
 
     ``paramDecl`` (frontmatter ``params``), ``paramRef`` (every body
     ``${…}``/``{% … %}`` root reference) and ``bindingKey`` (frontmatter
     ``example`` keys) share a name space: grouping by ``name`` yields every
-    rename site of a parameter. ``pname``/``iri``/``literal``/``comment`` only
-    ever occur in the frontmatter and feed the overlay (tooltips, prefix rename)
-    and formatters. A ``comment``'s ``value`` is the raw source slice (the
-    leading ``#`` through the end of the line), so ``source[start:end] ==
-    value``.
+    rename site of a parameter. ``pname``/``iri``/``literal`` only ever occur
+    in the frontmatter and feed the overlay (tooltips, prefix rename) and
+    formatters.
 
     ``loopDecl`` (the ``item`` in a ``{% for item in … %}`` header) and
     ``loopRef`` (every body reference whose root segment resolves to an in-scope

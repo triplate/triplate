@@ -6,7 +6,6 @@ params {
   limit:   int optional
 }
 
-# the dbpedia preview scenario
 example dbpedia "DBpedia — people & organizations" {
   service: <http://dbpedia.org/sparql>
   classes: [ foaf:Person, foaf:Organization ]

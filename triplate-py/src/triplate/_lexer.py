@@ -117,8 +117,6 @@ class _Lexer:
                 self._lex_iri_template()
             elif ch == "{" and nxt == "%":
                 self._lex_tag()
-            elif ch == "#":
-                self._lex_comment_as_text()
             elif ch in ('"', "'"):
                 self._enter_string(ch)
             elif ch == "<":
@@ -177,10 +175,6 @@ class _Lexer:
         else:
             self.string_delim = quote
             self._take(1)
-
-    def _lex_comment_as_text(self):
-        end = self.s.find("\n", self.pos)
-        self._take((len(self.s) if end < 0 else end) - self.pos)
 
     def _try_iri_ref(self):
         i = self.pos + 1
@@ -554,14 +548,6 @@ class _Lexer:
             c = self._peek()
             if c in (" ", "\t", "\n", "\r", ","):
                 self._advance(1)
-                continue
-            if c == "#":
-                start = self.pos
-                while self._peek() not in ("", "\n"):
-                    self._advance(1)
-                self.symbols.append(
-                    TemplateSymbol("comment", start, self.pos, value=self.s[start : self.pos])
-                )
                 continue
             break
 
