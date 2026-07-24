@@ -5,12 +5,16 @@ description: A templating engine for RDF query & data languages — SPARQL, Turt
 
 import { CardGrid, Card } from '@astrojs/starlight/components';
 
-Triplate lets you write **templates for RDF query and data languages** —
-SPARQL, Turtle, TriG, N-Triples — with a typed `---` frontmatter header, loops
-and conditionals. Values are validated and escaped per their declared RDF type,
-so rendered output is injection-safe by construction, and the syntax is invalid
-in the host language, so an unprocessed template fails fast.
+Triplate lets you write templates for RDF query and data languages, with typed parameters, loops, 
+and conditionals. It's designed for dynamically generating SPARQL queries in backend and AI 
+applications, though it can also be used to generate other languages such as Markdown, HTML, or CSV.
 
+What sets it apart from other templating languages is that *all* parameters are validated and 
+escaped according to their declared RDF type, so rendered output is injection-safe by construction. 
+Triplate's syntax is deliberately invalid in the host language, so any unprocessed template 
+parameters fail fast rather than silently producing malformed output.
+
+## Examples
 <CardGrid>
   <Card title="SPARQL Query" icon="magnifier">
     Template SPARQL queries for backend applications and AI agents — typed,
@@ -24,7 +28,8 @@ in the host language, so an unprocessed template fails fast.
   </Card>
 </CardGrid>
 
-## Example
+The following example illustrates a SPARQL query and many of the unique features,
+such as the frontmatter, for loops and conditionals:
 
 ```sparql
 ---
@@ -50,7 +55,7 @@ SELECT ?s WHERE {
 {% if limit %}LIMIT ${limit}{% endif %}
 ```
 
-Rendered with the `demo` example set:
+The example section named `demo` will be rendered with the following output:
 
 ```sparql
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
