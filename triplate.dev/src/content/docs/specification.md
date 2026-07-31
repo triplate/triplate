@@ -47,7 +47,7 @@ or `{` inside them is literal text:
 
 Keywords and type names fold ASCII case (`{% FOR %}`, `iri`/`IRI`); variable
 names, IRIs, string content, language tags, and the `true`/`false` term
-literals (RDF term syntax, §8) are case-sensitive.
+literals (RDF term syntax, §2.3) are case-sensitive.
 
 ## 2. The Frontmatter
 
@@ -80,13 +80,12 @@ SELECT ?s WHERE { … }
 ```
 
 - The frontmatter has a mandatory `params { … }` section and zero or more
-  `example … { … }` sections (§8). `#` comments and whitespace inside `---`
-  do not affect parsing or output; comments are retained as positioned symbols
-  so tooling (e.g. formatters) can preserve and re-indent them. This is
-  frontmatter-only — `#` is ordinary text in the body (§1). Both declarations
-  and bindings use `name: …`.
+  `example … { … }` sections (§2.3). Whitespace and `#` comments (§2.2) inside
+  `---` do not affect parsing or output. Both declarations and bindings use
+  `name: …`.
 - **Types**: `iri`, `pname`, `string`, `int`, `decimal`, `double`,
-  `bool`, `date`, `dateTime`, `time`, `literal(<dt>)`, `term`, `raw`.
+  `bool`, `date`, `dateTime`, `time`, `literal(<dt>)`, `term`, `raw` — see §2.1
+  for the full semantics of each.
 - **Modifiers** (fixed order): `<type> ['[]'] ['optional'] ['min' N] ['max' N]`.
   `[]` marks an array; `min`/`max` bound its length (valid only after `[]`);
   `optional` marks that a value may be absent.
@@ -103,7 +102,60 @@ SELECT ?s WHERE { … }
 The leading `---` is also a positive **"this is a Triplate template"** marker
 for tooling.
 
-### 2.1 Example Blocks
+### 2.1 Built-in Types
+
+Every scalar type owns its own validation and serialization — there is no
+generic "string" fallback. `${x}` (§3) always serializes per the declared
+type; the table below is what a standalone `${x}` becomes.
+
+| Type | Host value | Serializes as | Notes |
+|---|---|---|---|
+| `iri` | string (absolute IRI) | `<…>` | Rejects anything that is not a syntactically valid absolute IRI. |
+| `pname` | string (`prefix:local`) | bare `prefix:local` | Validated against a conservative prefixed-name grammar; never injects a `PREFIX` declaration. |
+| `string` | string | `"…"` | Escapes `\`, `"`, newline, CR, tab. |
+| `int` | integer | bare `42` | Strict: a numeric *string* (`"10"`) is not an `int`. |
+| `decimal` | number | canonical decimal, e.g. `4` → `4.0` | Always includes a decimal point; a value needing exponential notation is out of range. |
+| `double` | number | canonical scientific notation, e.g. `1500000` → `1.5E6` | `NaN`/`Infinity`/`-Infinity` serialize as typed literals (`"NaN"^^xsd:double`, …). |
+| `bool` | boolean | bare `true`/`false` | |
+| `date` | a host date value or ISO `YYYY-MM-DD` string | `"…"^^xsd:date` | |
+| `dateTime` | a host date value or ISO 8601 string | `"…"^^xsd:dateTime` | |
+| `time` | a host date value or ISO `HH:MM:SS` string | `"…"^^xsd:time` | |
+| `literal(<dt>)` | string | `"value"^^<dt>` | `<dt>` is the exact IRI or prefixed name declared in the header — the general escape hatch for custom datatypes. |
+| `term` | a host-native RDF term object (RDF/JS in TypeScript; `rdflib` in Python; a Jena `RDFNode` in Java) | the term's own lexical form: `<iri>` (IRI/NamedNode), `_:label` (blank node), or `"value"[@lang \| ^^datatype]` (literal) | Host-library-specific; Python's `term` requires the optional `rdflib` extra. |
+| `raw` | string | inserted verbatim | No validation or escaping — the single, auditable unsafe escape hatch (§9.2). |
+
+Arrays (`type[]`) and records (`{ field: type, … }`) compose these scalars —
+see **Modifiers** and **Records** above — but are not themselves types with
+their own serialization: an array is consumed by `{% for %}` (§6) or spread
+(§3.1); a record's fields are referenced individually (`${u.id}`).
+
+### 2.2 Comments
+
+```
+---
+params {
+  service: iri  # the target endpoint
+}
+# a comment inside the frontmatter is metadata (never emitted)
+example dbpedia "DBpedia" {
+  service: <http://dbpedia.org/sparql>
+}
+---
+```
+
+`#` to the end of the line is a comment — standalone on its own line, or
+trailing after a declaration or binding on the same line. Comments are
+consumed like the rest of the frontmatter (never emitted) and retained as
+positioned `comment` symbols so tooling (e.g. formatters) can preserve and
+re-indent them. A `#` inside a quoted string (e.g. an `example` description)
+is not a comment — the same inert-string rule as the body (§1) applies.
+
+**Comments are frontmatter-only.** In the body, `#` is ordinary text: it is
+not a comment and does not suppress interpolation. `# ${title}` in the body
+renders as a normal Markdown ATX heading with `${title}` interpolated — see
+the [Publishing examples](/examples/publishing/).
+
+### 2.3 Example Blocks
 
 ```
 example dbpedia "DBpedia — people" {
