@@ -91,6 +91,7 @@ const anyTriplate = (tokens) =>
 // --- frontmatter (multi-line, rule state threaded) ------------------------
 const fm = tokenizeBlock(
   '---\n' +
+  '# the dbpedia preview scenario\n' +
   'params {\n' +
   '  service: iri\n' +
   '  classes: iri[] min 1\n' +
@@ -107,6 +108,9 @@ check('frontmatter: min keyword', fm, (t) => has(t, 'min', 'keyword.other.tripla
 check('frontmatter: param name is a variable', fm, (t) => has(t, 'service', 'variable.other.triplate'));
 check('frontmatter: example description', fm, (t) => has(t, '"Demo"', 'string.quoted.double.triplate'));
 check('frontmatter: example IRI value', fm, (t) => has(t, '<http://x>', 'markup.underline.link.triplate'));
+check('frontmatter: # starts a comment', fm, (t) =>
+  has(t, '# the dbpedia preview scenario', 'comment.line.number-sign.triplate'),
+);
 
 // --- values ---------------------------------------------------------------
 check('value: punctuation + path', '?s a ${cls}', (t) =>

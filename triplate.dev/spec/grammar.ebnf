@@ -14,9 +14,11 @@ Template     ::= Frontmatter Body
 
 (* ---- Frontmatter header (mandatory, delimited by ---) ----
    The whole block, through the closing --- and its newline, is consumed and
-   never emitted. Inside, whitespace is ignored; sections are brace-delimited
-   so parameter names are unrestricted. *)
-Frontmatter  ::= '---' EOL ( WS | Section )* '---' EOL
+   never emitted. Inside, # comments and whitespace are ignored; sections are
+   brace-delimited so parameter names are unrestricted. Comments are frontmatter-
+   only — # is ordinary text in the Body (see below). *)
+Frontmatter  ::= '---' EOL ( Comment | WS | Section )* '---' EOL
+Comment      ::= '#' ( AnyChar - LineEnd )*
 Section      ::= 'params' '{' ParamDecl* '}'
                | 'example' Slug ( WS String )? '{' Binding* '}'
 ParamDecl    ::= Ident ':' TypeExpr

@@ -35,7 +35,7 @@ def test_schema_exposure():
 
 
 def test_frontmatter_is_stripped():
-    tmpl = compile("---\nparams {\n  c: iri\n}\n\n---\nSELECT * WHERE { ?s a ${c} }")
+    tmpl = compile("---\nparams {\n  c: iri\n}\n# metadata\n---\nSELECT * WHERE { ?s a ${c} }")
     assert tmpl.render(c="http://example.org/A") == "SELECT * WHERE { ?s a <http://example.org/A> }"
 
 
@@ -187,10 +187,26 @@ def test_hash_is_plain_text_in_body_not_a_comment():
     assert tmpl.render(title="My Title") == "# My Title"
 
 
-def test_hash_in_frontmatter_is_a_syntax_error_not_a_comment():
-    src = "---\nparams { who: pname }\n# a comment\n---\n?s a ${who}"
-    with pytest.raises(TriplateSyntaxError):
-        compile(src)
+def test_frontmatter_comments_are_positioned_symbols():
+    src = (
+        "---\n"
+        "# a standalone comment\n"
+        "params {\n  who: pname  # the subject\n}\n"
+        "---\n"
+        "?s a ${who}"
+    )
+    comments = [s for s in compile(src).symbols() if s.kind == "comment"]
+    assert [c.value for c in comments] == ["# a standalone comment", "# the subject"]
+    for c in comments:
+        assert src[c.start : c.end] == c.value
+    # Body comments stay text, not symbols — comments are frontmatter-only.
+    assert not any(
+        s.kind == "comment"
+        for s in compile("---\nparams { x: int }\n---\n# body ${x}").symbols()
+    )
+    # Comments do not disturb ascending source order.
+    offsets = [s.start for s in compile(src).symbols()]
+    assert offsets == sorted(offsets)
 
 
 def test_module_symbols_is_lenient_on_malformed_template():

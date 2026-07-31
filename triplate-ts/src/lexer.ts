@@ -547,12 +547,18 @@ class Lexer {
     if (this.peek() === '\n') this.advance(1);
   }
 
-  /** Whitespace (incl. newlines) and commas between frontmatter items. */
+  /** Whitespace (incl. newlines), commas and `#` comments between frontmatter items. */
   private skipFront(): void {
     for (; ;) {
       const c = this.peek();
       if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === ',') {
         this.advance(1);
+        continue;
+      }
+      if (c === '#') {
+        const start = this.pos;
+        while (this.peek() !== '' && this.peek() !== '\n') this.advance(1);
+        this.symbols.push({ kind: 'comment', value: this.s.slice(start, this.pos), start, end: this.pos });
         continue;
       }
       break;

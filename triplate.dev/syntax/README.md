@@ -7,14 +7,16 @@ values, `$"…"` strings, `$<…>` IRI templates, and `{% … %}` directives
 an existing host grammar, so a template gets normal SPARQL highlighting **plus**
 Triplate highlighting.
 
-It injects into `source.sparql` and stays out of the host grammar's own `#`
-comments and string literals, where a `$` or `{` isn't meaningful SPARQL
-highlighting-wise. (Triplate itself no longer treats `#` specially — a body
-`${x}` after a bare `#` is interpolated for real — but for a SPARQL-targeted
-template `#` is still genuine host-language comment syntax, so the injection
-grammar continues to leave it to the host.) A bare `$name` (a SPARQL variable)
-is left alone. This format is understood by VS Code, Sublime Text, and Shiki —
-so it also drives the code blocks on [triplate.dev](https://triplate.dev).
+It injects into `source.sparql` and stays out of the host grammar's own
+string literals, where a `$` or `{` isn't meaningful SPARQL highlighting-wise.
+`#` comments work differently by section: in the **frontmatter**, `#` starts
+a real Triplate comment, colored by our own grammar. In the **body**, `#` is
+ordinary text — a `${x}` after a bare `#` is interpolated for real, so the
+injection grammar leaves that line to the host's own SPARQL comment scope
+(same as it leaves strings alone) rather than claiming it. A bare `$name`
+(a SPARQL variable) is left alone. This format is understood by VS Code,
+Sublime Text, and Shiki — so it also drives the code blocks on
+[triplate.dev](https://triplate.dev).
 
 ## Key scopes
 
@@ -57,6 +59,8 @@ npm run test:syntax --workspace triplate.dev
 
 `test/grammar.test.mjs` tokenizes Triplate snippets with `vscode-textmate` +
 `vscode-oniguruma` (the engine VS Code and Shiki use), injecting over a minimal
-`source.sparql` stub, and asserts the expected scopes — including that host
-comments, strings, and bare `$name` variables are left untouched. See
-[`sample.triplate`](sample.triplate) for a representative template.
+`source.sparql` stub, and asserts the expected scopes — including that
+frontmatter `#` comments **are** highlighted, body `#` lines are left to the
+host's comment scope, and strings and bare `$name` variables are left
+untouched. See [`sample.triplate`](sample.triplate) for a representative
+template.
