@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.0](https://github.com/triplate/triplate/compare/v0.6.0...v0.7.0) (2026-07-24)
+
+
+### Features
+
+* add web app icons and manifest for improved PWA support ([cc5ab23](https://github.com/triplate/triplate/commit/cc5ab2379bf23ef01c91367dad533e6098f663b5))
+* **java:** publish triplate-java to Maven Central on release ([12d22e0](https://github.com/triplate/triplate/commit/12d22e049e56d29892dccc4d40e7a0e547557311))
+* **java:** publish triplate-java to Maven Central on release ([57f4cf5](https://github.com/triplate/triplate/commit/57f4cf5c2ae7f09195b51efa7fbee54b65bdfafe))
+
 ## [0.6.0](https://github.com/triplate/triplate/compare/v0.5.2...v0.6.0) (2026-06-26)
 
 
