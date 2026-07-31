@@ -1,0 +1,28 @@
+[
+  {
+    "name": "standalone hash comment in frontmatter is consumed",
+    "template": "---\nparams { s: iri }\n# a note about s\n---\nSELECT * WHERE { ?x a ${s} }",
+    "context": {
+      "s": "http://example.org/C"
+    },
+    "expected": "SELECT * WHERE { ?x a <http://example.org/C> }",
+    "roundtrip": true
+  },
+  {
+    "name": "trailing hash comment after a declaration is consumed",
+    "template": "---\nparams {\n  who: pname  # the subject\n}\n---\nPREFIX ex: <http://example.org/>\nSELECT * WHERE { ?s a ${who} }",
+    "context": {
+      "who": "ex:Person"
+    },
+    "expected": "PREFIX ex: <http://example.org/>\nSELECT * WHERE { ?s a ex:Person }",
+    "roundtrip": true
+  },
+  {
+    "name": "hash inside a frontmatter string is not a comment",
+    "template": "---\nparams { classes: iri[] }\nexample demo \"a#b\" {\n  classes: []\n}\n---\n{% for c in classes %}${c}{% endfor %}",
+    "context": {
+      "classes": []
+    },
+    "expected": ""
+  }
+]

@@ -53,7 +53,7 @@ literals (RDF term syntax, §8) are case-sensitive.
 
 A template begins with a `---`-delimited frontmatter block. The whole block,
 through the closing `---` and its trailing newline, is **consumed and never
-emitted** — so nothing in the header (blank lines included) leaks into the
+emitted** — so nothing in the header (comments, blank lines) leaks into the
 output. Sections are **brace-delimited**, which keeps parameter names
 unrestricted.
 
@@ -68,6 +68,7 @@ params {
   limit:    int
 }
 
+# a comment inside the frontmatter is metadata (never emitted)
 example dbpedia "DBpedia — people" {
   service: <http://dbpedia.org/sparql>
   classes: [ foaf:Person, foaf:Organization ]
@@ -79,8 +80,11 @@ SELECT ?s WHERE { … }
 ```
 
 - The frontmatter has a mandatory `params { … }` section and zero or more
-  `example … { … }` sections (§8). Whitespace inside `---` does not affect
-  parsing or output. Both declarations and bindings use `name: …`.
+  `example … { … }` sections (§8). `#` comments and whitespace inside `---`
+  do not affect parsing or output; comments are retained as positioned symbols
+  so tooling (e.g. formatters) can preserve and re-indent them. This is
+  frontmatter-only — `#` is ordinary text in the body (§1). Both declarations
+  and bindings use `name: …`.
 - **Types**: `iri`, `pname`, `string`, `int`, `decimal`, `double`,
   `bool`, `date`, `dateTime`, `time`, `literal(<dt>)`, `term`, `raw`.
 - **Modifiers** (fixed order): `<type> ['[]'] ['optional'] ['min' N] ['max' N]`.

@@ -153,8 +153,9 @@ public final class Ast {
    * (every body {@code ${…}}/{@code {% … %}} root reference) and
    * {@link BindingKeySym} (frontmatter {@code example} keys) share a name space:
    * grouping by {@code name} yields every rename site of a parameter.
-   * {@link PnameSym}/{@link IriSym}/{@link LiteralSym} only ever occur in the
-   * frontmatter and feed the overlay (tooltips, prefix rename).
+   * {@link PnameSym}/{@link IriSym}/{@link LiteralSym}/{@link CommentSym} only
+   * ever occur in the frontmatter and feed the overlay (tooltips, prefix
+   * rename) and formatters.
    *
    * <p>{@link LoopDeclSym} (the {@code item} in a {@code {% for item in … %}}
    * header) and {@link LoopRefSym} (every body reference whose root segment
@@ -173,7 +174,8 @@ public final class Ast {
           LoopRefSym,
           PnameSym,
           IriSym,
-          LiteralSym {
+          LiteralSym,
+          CommentSym {
     int start();
 
     int end();
@@ -194,6 +196,12 @@ public final class Ast {
   public record IriSym(String value, int start, int end) implements TemplateSymbol {}
 
   public record LiteralSym(String value, String datatype, int start, int end) implements TemplateSymbol {}
+
+  /**
+   * A frontmatter {@code # …} comment. {@code value} is the raw source slice (the leading {@code #}
+   * through the end of the line), so {@code source.substring(start, end).equals(value)}.
+   */
+  public record CommentSym(String value, int start, int end) implements TemplateSymbol {}
 
   public record CompiledTemplateData(
       Schema schema, List<ExampleSet> examples, List<Node> body, List<TemplateSymbol> symbols) {}

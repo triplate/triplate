@@ -36,5 +36,7 @@ plain `"…"`/`<…>` cannot provide.
 
 Complete `<…>` IRIs and string literals (`"…"`, `'…'`, triple-quoted) pass
 through verbatim — a `$` or `{` inside them is literal text. `#` is not
-special anywhere in Triplate; it's ordinary text, so a body like `# ${title}`
-renders as a normal Markdown heading with `${title}` interpolated.
+special in the **body**; it's ordinary text, so a line like `# ${title}`
+renders as a normal Markdown heading with `${title}` interpolated. In the
+**frontmatter**, `#` still starts a comment — consumed and never emitted,
+same as the rest of the header.

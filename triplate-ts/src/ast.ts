@@ -132,8 +132,10 @@ export interface ExampleSet {
  * `paramDecl` (frontmatter `params`), `paramRef` (every body `${…}`/`{% … %}`
  * root reference) and `bindingKey` (frontmatter `example` keys) share a name
  * space: grouping by `name` yields every rename site of a parameter.
- * `pname`/`iri`/`literal` only ever occur in the frontmatter and feed the
- * overlay (tooltips, prefix rename) and formatters.
+ * `pname`/`iri`/`literal`/`comment` only ever occur in the frontmatter and feed
+ * the overlay (tooltips, prefix rename) and formatters. A `comment`'s `value` is
+ * the raw source slice (the leading `#` through the end of the line), so
+ * `source.slice(start, end) === value`.
  *
  * `loopDecl` (the `item` in a `{% for item in … %}` header) and `loopRef` (every
  * body reference whose root segment resolves to an in-scope loop variable) are
@@ -152,7 +154,8 @@ export type TemplateSymbol =
   | { kind: 'loopRef'; name: string; scope: number; start: number; end: number }
   | { kind: 'pname'; prefix: string; local: string; start: number; end: number }
   | { kind: 'iri'; value: string; start: number; end: number }
-  | { kind: 'literal'; value: string; datatype?: string; start: number; end: number };
+  | { kind: 'literal'; value: string; datatype?: string; start: number; end: number }
+  | { kind: 'comment'; value: string; start: number; end: number };
 
 export interface CompiledTemplateData {
   schema: Schema;
