@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/triplate/triplate/compare/v0.7.0...v0.7.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* **lang:** allow # comments at every frontmatter nesting depth ([00af2c1](https://github.com/triplate/triplate/commit/00af2c1fa3576821f5cb46259734b8a633c5e4e1))
+* **lang:** allow # comments at every frontmatter nesting depth ([f50e123](https://github.com/triplate/triplate/commit/f50e123da2f31734c05fe372504603a915ed80e3))
+
 ## [0.7.0](https://github.com/triplate/triplate/compare/v0.6.0...v0.7.0) (2026-07-24)
 
 
