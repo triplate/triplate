@@ -37,7 +37,6 @@ _IDENT_CHAR = re.compile(r"[A-Za-z0-9_]")
 _SLUG_CHAR = re.compile(r"[A-Za-z0-9_-]")
 _LETTER = re.compile(r"[A-Za-z]")
 _LANG_CHAR = re.compile(r"[A-Za-z0-9-]")
-_WS_COMMA = re.compile(r"[\s,]")
 _DT_LOCAL = re.compile(r"[A-Za-z0-9_.:-]")
 _PN_LOCAL = re.compile(r"[A-Za-z0-9_.-]")
 
@@ -161,10 +160,6 @@ class _Lexer:
 
     def _skip_inline(self):
         while self._peek() in (" ", "\t"):
-            self._advance(1)
-
-    def _skip_ws(self):
-        while self._peek() != "" and _WS_COMMA.match(self._peek()):
             self._advance(1)
 
     def _enter_string(self, quote):
@@ -544,6 +539,11 @@ class _Lexer:
             self._advance(1)
 
     def _skip_front(self):
+        """Whitespace (incl. newlines), commas and ``#`` comments between
+        frontmatter items -- at every nesting depth, so a record type, example
+        list or example record can carry comments too. The sole skipper inside
+        the header, which is what keeps the three implementations compatible.
+        """
         while True:
             c = self._peek()
             if c in (" ", "\t", "\n", "\r", ","):
@@ -695,7 +695,7 @@ class _Lexer:
         self._advance(1)  # {
         fields = {}
         while True:
-            self._skip_ws()
+            self._skip_front()
             if self._peek() == "}":
                 self._advance(1)
                 break
@@ -768,7 +768,7 @@ class _Lexer:
         self._advance(1)  # [
         items = []
         while True:
-            self._skip_ws()
+            self._skip_front()
             if self._peek() == "]":
                 self._advance(1)
                 break
@@ -781,7 +781,7 @@ class _Lexer:
         self._advance(1)  # {
         fields = {}
         while True:
-            self._skip_ws()
+            self._skip_front()
             if self._peek() == "}":
                 self._advance(1)
                 break

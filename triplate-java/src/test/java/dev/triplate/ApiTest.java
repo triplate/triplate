@@ -231,6 +231,50 @@ class ApiTest {
   }
 
   @Test
+  void nestedFrontmatterCommentsArePositionedSymbols() {
+    String src =
+        "---\n"
+            + "# a header note\n"
+            + "params {\n"
+            + "  u: {\n"
+            + "    id:   iri     # in a record type\n"
+            + "    name: string\n"
+            + "  }\n"
+            + "  tags: string[]  # in params\n"
+            + "}\n"
+            + "example demo {\n"
+            + "  u: { id: <http://example.org/1>,   # in an example record\n"
+            + "       name: \"Alice\" }\n"
+            + "  tags: [\n"
+            + "    \"a\",          # in an example list\n"
+            + "    \"b\"\n"
+            + "  ]\n"
+            + "}\n"
+            + "---\n"
+            + "${u.id} ${...tags}";
+    List<TemplateSymbol> symbols = Triplate.compile(src).symbols();
+    List<CommentSym> comments =
+        symbols.stream().filter(s -> s instanceof CommentSym).map(s -> (CommentSym) s).toList();
+    // A comment is legal wherever an item may start, at every nesting depth.
+    assertEquals(
+        List.of(
+            "# a header note",
+            "# in a record type",
+            "# in params",
+            "# in an example record",
+            "# in an example list"),
+        comments.stream().map(CommentSym::value).toList());
+    for (CommentSym c : comments) {
+      assertEquals(c.value(), src.substring(c.start(), c.end()));
+    }
+    int prev = -1;
+    for (TemplateSymbol s : symbols) {
+      assertTrue(s.start() >= prev, "symbols must be in ascending source order");
+      prev = s.start();
+    }
+  }
+
+  @Test
   void moduleSymbolsIsLenientOnMalformedTemplate() {
     String bad = "---\nparams { a: int }\nexample x {\n  who: schema:Person\n";
     assertThrows(TriplateSyntaxError.class, () -> Triplate.compile(bad));

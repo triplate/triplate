@@ -222,14 +222,6 @@ final class Lexer {
     while (peek() == ' ' || peek() == '\t') advance(1);
   }
 
-  private void skipWs() {
-    while (pos < s.length() && (isJsSpace(peek()) || peek() == ',')) advance(1);
-  }
-
-  private static boolean isJsSpace(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == 0x0B;
-  }
-
   private void enterString(char quote) {
     String triple = "" + quote + quote + quote;
     if (s.startsWith(triple, pos)) {
@@ -677,6 +669,12 @@ final class Lexer {
     if (peek() == '\n') advance(1);
   }
 
+  /**
+   * Whitespace (incl. newlines), commas and {@code #} comments between
+   * frontmatter items -- at every nesting depth, so a record type, example list
+   * or example record can carry comments too. The sole skipper inside the
+   * header, which is what keeps the three implementations compatible.
+   */
   private void skipFront() {
     for (; ; ) {
       char c = peek();
@@ -832,7 +830,7 @@ final class Lexer {
     advance(1); // {
     Map<String, TypeExpr> fields = new LinkedHashMap<>();
     for (; ; ) {
-      skipWs();
+      skipFront();
       if (peek() == '}') {
         advance(1);
         break;
@@ -921,7 +919,7 @@ final class Lexer {
     advance(1); // [
     List<ExampleValue> items = new ArrayList<>();
     for (; ; ) {
-      skipWs();
+      skipFront();
       if (peek() == ']') {
         advance(1);
         break;
@@ -936,7 +934,7 @@ final class Lexer {
     advance(1); // {
     Map<String, ExampleValue> fields = new LinkedHashMap<>();
     for (; ; ) {
-      skipWs();
+      skipFront();
       if (peek() == '}') {
         advance(1);
         break;

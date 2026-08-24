@@ -188,6 +188,42 @@ describe('API behaviour', () => {
       expect(offsets).toEqual([...offsets].sort((a, b) => a - b));
     });
 
+    it('captures comments nested inside record types and example values', () => {
+      const src =
+        '---\n' +
+        '# a header note\n' +
+        'params {\n' +
+        '  u: {\n' +
+        '    id:   iri     # in a record type\n' +
+        '    name: string\n' +
+        '  }\n' +
+        '  tags: string[]  # in params\n' +
+        '}\n' +
+        'example demo {\n' +
+        '  u: { id: <http://example.org/1>,   # in an example record\n' +
+        '       name: "Alice" }\n' +
+        '  tags: [\n' +
+        '    "a",          # in an example list\n' +
+        '    "b"\n' +
+        '  ]\n' +
+        '}\n' +
+        '---\n' +
+        '${u.id} ${...tags}';
+      const symbols = compile(src).symbols();
+      const comments = symbols.filter((s) => s.kind === 'comment') as Array<{ value: string; start: number; end: number }>;
+      // A comment is legal wherever an item may start, at every nesting depth.
+      expect(comments.map((c) => c.value)).toEqual([
+        '# a header note',
+        '# in a record type',
+        '# in params',
+        '# in an example record',
+        '# in an example list',
+      ]);
+      for (const c of comments) expect(src.slice(c.start, c.end)).toBe(c.value);
+      const offsets = symbols.map((s) => s.start);
+      expect(offsets).toEqual([...offsets].sort((a, b) => a - b));
+    });
+
     it('the standalone symbols() is lenient — returns what parsed on a malformed template', () => {
       const bad = '---\nparams { a: int }\nexample x {\n  who: schema:Person\n';
       expect(() => compile(bad)).toThrow(TriplateSyntaxError);

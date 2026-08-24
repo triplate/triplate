@@ -164,9 +164,6 @@ class Lexer {
   private skipInline(): void {
     while (this.peek() === ' ' || this.peek() === '\t') this.advance(1);
   }
-  private skipWs(): void {
-    while (this.peek() !== '' && /[\s,]/.test(this.peek())) this.advance(1);
-  }
   private enterString(quote: string): void {
     const triple = quote.repeat(3);
     if (this.s.startsWith(triple, this.pos)) {
@@ -547,7 +544,12 @@ class Lexer {
     if (this.peek() === '\n') this.advance(1);
   }
 
-  /** Whitespace (incl. newlines), commas and `#` comments between frontmatter items. */
+  /**
+   * Whitespace (incl. newlines), commas and `#` comments between frontmatter
+   * items — at every nesting depth, so a record type, example list or example
+   * record can carry comments too. The sole skipper inside the header, which
+   * is what keeps the three implementations compatible.
+   */
   private skipFront(): void {
     for (; ;) {
       const c = this.peek();
@@ -799,7 +801,7 @@ class Lexer {
     const fields: Record<string, TypeExpr> = {};
 
     for (; ;) {
-      this.skipWs();
+      this.skipFront();
 
       if (this.peek() === '}') {
         this.advance(1);
@@ -931,7 +933,7 @@ class Lexer {
     const items: ExampleValue[] = [];
 
     for (; ;) {
-      this.skipWs();
+      this.skipFront();
 
       if (this.peek() === ']') {
         this.advance(1);
@@ -954,7 +956,7 @@ class Lexer {
     const fields: Record<string, ExampleValue> = {};
 
     for (; ;) {
-      this.skipWs();
+      this.skipFront();
 
       if (this.peek() === '}') {
         this.advance(1);

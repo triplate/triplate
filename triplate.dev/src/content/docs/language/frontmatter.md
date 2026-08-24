@@ -44,6 +44,44 @@ type; inside `$"…"` → string-escaped; inside `$<…>` → percent-encoded.
 Keywords and type names are case-insensitive; variable names, IRIs, and string
 content are case-sensitive.
 
+## Comments
+
+```
+---
+params {
+  service: iri    # the endpoint this query federates to
+  people: {
+    id:   iri     # stable identifier
+    name: string
+  }[]             # one row per person
+}
+# everything below is preview-only
+example demo {
+  service: <http://dbpedia.org/sparql>
+  people: [
+    { id: <http://ex.org/1>, name: "Ada" },  # the first row
+    { id: <http://ex.org/2>, name: "Grace" }
+  ]
+}
+---
+```
+
+`#` runs to the end of the line. Put one wherever an item may start — at any
+nesting depth — or trail an item on the same line: between sections, between
+declarations or bindings, between the fields of a record type, and between the
+elements of an example list or record.
+
+A comment may not split an item, so `name  # …  : string` is a syntax error.
+
+**Comments live in the header only.** In the body `#` is ordinary text and does
+not suppress interpolation — `# ${title}` renders as a Markdown heading with
+`${title}` filled in. See [Specification §2.2](../../specification/#22-comments)
+for the normative rule.
+
+Comments never reach the output, but they are not thrown away either: each one
+survives as a positioned `comment` symbol in `symbols()`, so a formatter or IDE
+can re-indent a header without losing them.
+
 ## Example Blocks
 
 ```

@@ -46,6 +46,18 @@ jobs:
       - run: mvn -B verify
         working-directory: triplate-java
 
+  syntax:
+    name: Syntax highlighting (TextMate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:syntax
+
   docs:
     name: Docs site (build)
     runs-on: ubuntu-latest
