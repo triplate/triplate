@@ -49,15 +49,20 @@ function tokenizeLine(line, ruleStack = null) {
 }
 
 /** Tokenize a multi-line block, threading rule state across lines (for `---` frontmatter). */
-function tokenizeBlock(text) {
+function tokenizeBlockLines(text) {
   let stack = null;
-  const all = [];
+  const lines = [];
   for (const line of text.split('\n')) {
     const { tokens, ruleStack } = tokenizeLine(line, stack);
-    all.push(...tokens);
+    lines.push(tokens);
     stack = ruleStack;
   }
-  return all;
+  return lines;
+}
+
+/** As above, flattened — for checks that do not care which line a token came from. */
+function tokenizeBlock(text) {
+  return tokenizeBlockLines(text).flat();
 }
 
 let failures = 0;
@@ -89,18 +94,32 @@ const anyTriplate = (tokens) =>
   tokens.some((t) => t.scopes.some((s) => s.endsWith('.triplate')));
 
 // --- frontmatter (multi-line, rule state threaded) ------------------------
-const fm = tokenizeBlock(
+// Also a valid template: comments sit at the top level, inside a record type
+// and inside an example list.
+const fmLines = tokenizeBlockLines(
   '---\n' +
   '# the dbpedia preview scenario\n' +
   'params {\n' +
   '  service: iri\n' +
   '  classes: iri[] min 1\n' +
+  '  people: {\n' +
+  '    id: iri     # nested in a record type\n' +
+  '  }[]\n' +
   '}\n' +
   'example demo "Demo" {\n' +
   '  service: <http://x>\n' +
+  '  classes: [\n' +
+  '    <http://x/C>,  # nested in an example list\n' +
+  '  ]\n' +
+  '  people: []\n' +
   '}\n' +
   '---',
 );
+const fm = fmLines.flat();
+/** Tokens of the first fixture line containing `needle` — for line-scoped checks. */
+const fmLineWith = (needle) =>
+  fmLines.find((ts) => ts.map((t) => t.text).join('').includes(needle)) ?? [];
+
 check('frontmatter: params keyword', fm, (t) => has(t, 'params', 'keyword.control.triplate'));
 check('frontmatter: example keyword', fm, (t) => has(t, 'example', 'keyword.control.triplate'));
 check('frontmatter: type', fm, (t) => has(t, 'iri', 'support.type.triplate'));
@@ -110,6 +129,15 @@ check('frontmatter: example description', fm, (t) => has(t, '"Demo"', 'string.qu
 check('frontmatter: example IRI value', fm, (t) => has(t, '<http://x>', 'markup.underline.link.triplate'));
 check('frontmatter: # starts a comment', fm, (t) =>
   has(t, '# the dbpedia preview scenario', 'comment.line.number-sign.triplate'),
+);
+// Line-scoped: the comment rule must claim the comment only, not the whole line.
+check('frontmatter: # comments nest inside a record type', fmLineWith('# nested in a record type'), (t) =>
+  has(t, '# nested in a record type', 'comment.line.number-sign.triplate') &&
+  has(t, 'iri', 'support.type.triplate'),
+);
+check('frontmatter: # comments nest inside an example list', fmLineWith('# nested in an example list'), (t) =>
+  has(t, '# nested in an example list', 'comment.line.number-sign.triplate') &&
+  has(t, '<http://x/C>', 'markup.underline.link.triplate'),
 );
 
 // --- values ---------------------------------------------------------------

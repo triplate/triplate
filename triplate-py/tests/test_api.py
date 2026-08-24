@@ -209,6 +209,44 @@ def test_frontmatter_comments_are_positioned_symbols():
     assert offsets == sorted(offsets)
 
 
+def test_nested_frontmatter_comments_are_positioned_symbols():
+    src = (
+        "---\n"
+        "# a header note\n"
+        "params {\n"
+        "  u: {\n"
+        "    id:   iri     # in a record type\n"
+        "    name: string\n"
+        "  }\n"
+        "  tags: string[]  # in params\n"
+        "}\n"
+        "example demo {\n"
+        '  u: { id: <http://example.org/1>,   # in an example record\n'
+        '       name: "Alice" }\n'
+        "  tags: [\n"
+        '    "a",          # in an example list\n'
+        '    "b"\n'
+        "  ]\n"
+        "}\n"
+        "---\n"
+        "${u.id} ${...tags}"
+    )
+    symbols = compile(src).symbols()
+    comments = [s for s in symbols if s.kind == "comment"]
+    # A comment is legal wherever an item may start, at every nesting depth.
+    assert [c.value for c in comments] == [
+        "# a header note",
+        "# in a record type",
+        "# in params",
+        "# in an example record",
+        "# in an example list",
+    ]
+    for c in comments:
+        assert src[c.start : c.end] == c.value
+    offsets = [s.start for s in symbols]
+    assert offsets == sorted(offsets)
+
+
 def test_module_symbols_is_lenient_on_malformed_template():
     bad = '---\nparams { a: int }\nexample x {\n  who: schema:Person\n'
     with pytest.raises(TriplateSyntaxError):

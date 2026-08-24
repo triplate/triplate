@@ -135,20 +135,36 @@ their own serialization: an array is consumed by `{% for %}` (§6) or spread
 ---
 params {
   service: iri  # the target endpoint
+  people: {
+    id:   iri     # a comment nests as deep as the header does
+    name: string
+  }[]
 }
 # a comment inside the frontmatter is metadata (never emitted)
 example dbpedia "DBpedia" {
   service: <http://dbpedia.org/sparql>
+  people: [
+    { id: <http://dbpedia.org/resource/Ada_Lovelace>,  # the first entry
+      name: "Ada Lovelace" }
+  ]
 }
 ---
 ```
 
-`#` to the end of the line is a comment — standalone on its own line, or
-trailing after a declaration or binding on the same line. Comments are
-consumed like the rest of the frontmatter (never emitted) and retained as
-positioned `comment` symbols so tooling (e.g. formatters) can preserve and
-re-indent them. A `#` inside a quoted string (e.g. an `example` description)
-is not a comment — the same inert-string rule as the body (§1) applies.
+`#` to the end of the line is a comment. It may appear **wherever an item may
+start — at any nesting depth** — standalone on its own line, or trailing an item
+on the same line: between `params`/`example` sections, between declarations or
+bindings, between the fields of a record type, and between the elements of an
+example list or record.
+
+A comment may not *split* an item: `#` between a name and its `:`, between `:`
+and the type or value, or between `example` and its id, is a syntax error.
+
+Comments are consumed like the rest of the frontmatter (never emitted) and
+retained as positioned `comment` symbols so tooling (e.g. formatters) can
+preserve and re-indent them. A `#` inside a quoted string (e.g. an `example`
+description) is not a comment — the same inert-string rule as the body (§1)
+applies.
 
 **Comments are frontmatter-only.** In the body, `#` is ordinary text: it is
 not a comment and does not suppress interpolation. `# ${title}` in the body

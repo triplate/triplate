@@ -14,13 +14,20 @@ Template     ::= Frontmatter Body
 
 (* ---- Frontmatter header (mandatory, delimited by ---) ----
    The whole block, through the closing --- and its newline, is consumed and
-   never emitted. Inside, # comments and whitespace are ignored; sections are
-   brace-delimited so parameter names are unrestricted. Comments are frontmatter-
-   only — # is ordinary text in the Body (see below). *)
-Frontmatter  ::= '---' EOL ( Comment | WS | Section )* '---' EOL
+   never emitted. Inside, # comments and whitespace are ignored (see Gap);
+   sections are brace-delimited so parameter names are unrestricted. Comments
+   are frontmatter-only — # is ordinary text in the Body (see below). *)
+Frontmatter  ::= '---' EOL Gap ( Section Gap )* '---' EOL
+
+(* Whitespace, item separators and # comments. Gap sits wherever an item may
+   start, at every nesting depth, so a comment may precede any item or trail
+   one on the same line. It may not split an item: a comment between an Ident
+   and its ':', or between ':' and the value, is a syntax error. *)
+Gap          ::= ( WS | ',' | Comment )*
 Comment      ::= '#' ( AnyChar - LineEnd )*
-Section      ::= 'params' '{' ParamDecl* '}'
-               | 'example' Slug ( WS String )? '{' Binding* '}'
+
+Section      ::= 'params' Gap '{' Gap ( ParamDecl Gap )* '}'
+               | 'example' Slug ( WS String )? Gap '{' Gap ( Binding Gap )* '}'
 ParamDecl    ::= Ident ':' TypeExpr
 Binding      ::= Ident ':' ExValue
 TypeExpr     ::= TypeBase ( '[]' )? ( WS 'optional' )?
@@ -28,13 +35,13 @@ TypeExpr     ::= TypeBase ( '[]' )? ( WS 'optional' )?
 TypeBase     ::= Scalar | 'literal' '(' DatatypeRef ')' | Record
 Scalar       ::= 'iri' | 'pname' | 'string' | 'int' | 'decimal' | 'double'
                | 'bool' | 'date' | 'dateTime' | 'time' | 'term' | 'raw'
-Record       ::= '{' Field ( ( ',' )? Field )* '}'
+Record       ::= '{' Gap ( Field Gap )* '}'
 Field        ::= Ident ':' TypeExpr
 Slug         ::= ( Letter | '_' ) ( Letter | Digit | '_' | '-' )*
 ExValue      ::= IRIREF | PrefixedName | String ( '@' LangTag | '^^' DatatypeRef )?
                | Number | 'true' | 'false'
-               | '[' ( ExValue ( ','? ExValue )* )? ']'
-               | '{' ( Ident ':' ExValue ( ','? Ident ':' ExValue )* )? '}'
+               | '[' Gap ( ExValue Gap )* ']'
+               | '{' Gap ( Ident ':' ExValue Gap )* '}'
 DatatypeRef  ::= IRIREF | PrefixedName
 
 (* ---- Body ---- *)

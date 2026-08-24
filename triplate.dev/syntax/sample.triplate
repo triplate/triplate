@@ -2,14 +2,20 @@
 params {
   service: iri
   classes: iri[] min 1
-  people:  { id: iri, name: string }[]
+  people:  {
+    id:   iri     # comments nest as deep as the header does
+    name: string
+  }[]
   limit:   int optional
 }
 
 # the dbpedia preview scenario
 example dbpedia "DBpedia — people & organizations" {
   service: <http://dbpedia.org/sparql>
-  classes: [ foaf:Person, foaf:Organization ]
+  classes: [
+    foaf:Person,        # and trail an item on the same line
+    foaf:Organization
+  ]
   people:  [ { id: <http://example.org/p1>, name: "Alice" } ]
   limit:   10
 }
